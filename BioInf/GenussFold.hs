@@ -1,7 +1,7 @@
 
 module BioInf.GenussFold
-  ( pknPairMax
+  ( energyMin
   ) where
 
-import BioInf.GenussFold.PKN (pknPairMax)
+import BioInf.GenussFold.EnergyMin (energyMin)
 

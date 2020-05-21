@@ -37,17 +37,17 @@ N: S
  -}
 N: <U,2>
 N: <V,2>
-T: c
+T: base
 S: S
-S -> unp <<< S c
-S -> jux <<< S c S c
+S -> unp <<< S base
+S -> jux <<< S base S base
 S -> nil <<< e
 S -> pse <<< U V U V
 
-<U,U> -> pk1 <<< [S,-] [c,-] <U,U> [-,S] [-,c]
+<U,U> -> pk1 <<< [S,-] [base,-] <U,U> [-,S] [-,base]
 <U,U> -> nll <<< [e,e]
 
-<V,V> -> pk2 <<< [S,-] [c,-] <V,V> [-,S] [-,c]
+<V,V> -> pk2 <<< [S,-] [base,-] <V,V> [-,S] [-,base]
 <V,V> -> nll <<< [e,e]
 //
 Emit: PKN
@@ -86,7 +86,7 @@ pairs !c !d
 
 pretty :: Monad m => SigPKN m [String] [[String]] Char
 pretty = SigPKN
-  { unp = \ [x] c     -> [x ++ "."]
+  { unp = \ [x] c     -> [x ++ "-"]
   , jux = \ [x] c [y] d -> [x ++ "(" ++ y ++ ")"]
   , pse = \ () () [x1,x2] [y1,y2] -> [x1 ++ y1 ++ x2 ++ y2]
   , nil = \ ()      -> [""]
