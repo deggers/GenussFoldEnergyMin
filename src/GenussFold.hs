@@ -27,7 +27,6 @@ main = do
     Nussinov{..} -> do
       ls <- lines <$> getContents
       forM_ ls $ \l -> do
-        let (r,bs) = pknPairMax coopts l
+        let (r,bs) = energyMin coopts l
         printf "%s   %d\n" l r
         forM_ bs $ \[b] -> printf "%s   %d\n" b r
-

@@ -19,6 +19,8 @@ import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage
 
+-- Rename to SimpleHairpinsNussinov
+
 -- | Define signature and grammar
 
 [formalLanguage|
@@ -28,8 +30,10 @@ Grammar: EnergyMin
 N: S
 T: base
 S: S
-S -> singleStranded <<< S base
+S -> singleStrandedL <<< base S
+S -> singleStrandedR <<< S base
 S -> hairpinLoop <<< base S base
+S -> emptySequence <<< e
 
 //
 Emit: EnergyMin
@@ -37,11 +41,13 @@ Emit: EnergyMin
 
 makeAlgebraProduct ''SigEnergyMin
 
-energyMin :: Monad m => SigEnergyMin m Int Int Char
-energyMin = SigEnergyMin
-  { singleStranded = \ x c     -> x
+energyMinAlg :: Monad m => SigEnergyMin m Int Int Char
+energyMinAlg = SigEnergyMin
+  { singleStrandedR = \ x c     -> x
+  , singleStrandedL = \ c x     -> x
+  , emptySequence = \ () -> 0
   , hairpinLoop = \ a ss b -> if a `pairs` b then ss + 1 else -888888
-  , h   = SM.foldl' max (-999999)
+  , h   = SM.foldl' max (-999998)
   }
 {-# INLINE energyMin #-}
 
@@ -57,14 +63,16 @@ pairs !c !d
 
 pretty :: Monad m => SigEnergyMin m [String] [[String]] Char
 pretty = SigEnergyMin
-  { singleStranded = \ [x] c     -> [x ++ "-"]
+  { singleStrandedR = \ [x] c     -> [x ++ "-"]
+  , singleStrandedL = \ c [x]     -> ["-" ++ x]
+  , emptySequence = \ () -> ["_"]
   , hairpinLoop = \ x [y] c-> ["(" ++ y ++ ")"]
   , h   = SM.toList
   }
 {-# INLINE pretty #-}
 
-energyMinAlg :: Int -> String -> (Int,[[String]])
-energyMinAlg k inp = (d, take k bs) where
+energyMin :: Int -> String -> (Int,[[String]])
+energyMin k inp = (d, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   !(Z:.t) = runInsideForward i
@@ -75,8 +83,8 @@ energyMinAlg k inp = (d, take k bs) where
 type X = ITbl Id Unboxed Subword Int
 
 runInsideForward :: VU.Vector Char -> Z:.X
-runInsideForward i = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
-                   $ gEnergyMin energyMin
+runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
+                   $ gEnergyMin energyMinAlg
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999) []))
                         (chr i)
   where n = VU.length i
@@ -84,7 +92,7 @@ runInsideForward i = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
 
 runInsideBacktrack :: VU.Vector Char -> Z:.X -> [[String]]
 runInsideBacktrack i (Z:.t) = unId $ axiom b
-  where !(Z:.b) = gEnergyMin (energyMin <|| pretty)
+  where !(Z:.b) = gEnergyMin (energyMinAlg <|| pretty)
                           (toBacktrack t (undefined :: Id a -> Id a))
                           (chr i)
 {-# NoInline runInsideBacktrack #-}
