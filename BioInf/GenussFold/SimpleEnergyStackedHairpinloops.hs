@@ -1,5 +1,5 @@
 
-module BioInf.GenussFold.EnergyMin where
+module BioInf.GenussFold.SimpleEnergyStackedHairpinLoops where
 
 import           Control.Applicative
 import           Control.Monad
@@ -19,14 +19,12 @@ import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage
 
--- Rename to SimpleStackedHairpinsNussinov
-
 -- | Define signature and grammar
 
 [formalLanguage|
 Verbose
 
-Grammar: EnergyMin
+Grammar: SimpleEnergyStackedHairpinLoops
 N: S
 T: nt
 S: S
@@ -46,7 +44,7 @@ energyMinAlg = SigEnergyMin
   { ssr = \ x c     -> x
   , ssl = \ c x     -> x
   , emptySequence = \ () -> 0
-  , stackedHL = \ a b ss c d-> if b `pairs` c && a `pairs`d then ss + 1 else -888888
+  , stackedHL = \ a b ss c d -> if b `pairs` c && a `pairs` d then ss + 1 else -888888
   , h   = SM.foldl' max (-999998)
   }
 {-# INLINE energyMin #-}
@@ -65,8 +63,8 @@ pretty :: Monad m => SigEnergyMin m [String] [[String]] Char
 pretty = SigEnergyMin
   { ssr = \ [x] c     -> [x ++ "-"]
   , ssl = \ c [x]     -> ["-" ++ x]
-  , emptySequence = \ () -> [""]
-  , stackedHL = \ a b [y] c d-> ["((" ++ y ++ "))"]
+  , emptySequence = \ () -> ["_"]
+  , stackedHL = \ a b [y] c d-> ["(" ++ y ++ ")"]
   , h   = SM.toList
   }
 {-# INLINE pretty #-}
