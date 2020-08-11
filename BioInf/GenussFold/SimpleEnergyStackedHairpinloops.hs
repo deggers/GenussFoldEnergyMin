@@ -69,6 +69,16 @@ pretty = SigEnergyMin
   }
 {-# INLINE pretty #-}
 
+prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (Maybe Char, Char) (Char, Maybe Char)
+prettyChar = SigEnergyMin
+  { ssr = \ [x] nt  -> [[n] ++ x]
+  , ssl = \ nt [x]  -> [x ++ [nt]]
+  , nil = \ ()     -> [""]
+  , hl = \ _ [x] _ -> ["(" ++ x ++ ")"]
+  , unp = \ _ [x] _ -> ["x" ++ x ++ "x"]
+  , h   = SM.toList
+  }
+{-# INLINE prettyChar #-}
 -- @TODO implement missing entropie parameters
 -- @TODO ent_hl :: LoopSize -> Energy
 ent_hl :: Int -> Double
