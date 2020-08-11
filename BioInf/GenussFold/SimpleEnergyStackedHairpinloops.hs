@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
-
 module BioInf.GenussFold.SimpleEnergyStackedHairpinLoops where
 
 import           Control.Applicative
@@ -29,7 +27,6 @@ Verbose
 
 Grammar: EnergyMin
 N: Struct
-N: Region
 
 T: ntL
 T: ntR
