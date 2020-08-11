@@ -71,13 +71,14 @@ pretty = SigEnergyMin
 
 prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (Maybe Char, Char) (Char, Maybe Char)
 prettyChar = SigEnergyMin
-  { ssr = \ [x] nt  -> [[n] ++ x]
-  , ssl = \ nt [x]  -> [x ++ [nt]]
-  , nil = \ ()     -> [""]
-  , hl = \ _ [x] _ -> ["(" ++ x ++ ")"]
-  , unp = \ _ [x] _ -> ["x" ++ x ++ "x"]
+  { ssr = \ [x] nt     -> [[nt] ++ x]
+  , ssl = \ nt [x]     -> [x ++ [nt]]
+  , nil = \ ()         -> [""]
+  , hl = \ (ntL, maybeNtL) [x] (maybeNtR, ntR) -> ["(" ++ x ++ ")"]
+  , unp = \ ntL [x] ntR    -> [[ntL] ++ x ++ [ntR]]
   , h   = SM.toList
   }
+
 {-# INLINE prettyChar #-}
 -- @TODO implement missing entropie parameters
 -- @TODO ent_hl :: LoopSize -> Energy
@@ -144,7 +145,7 @@ runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
 
 runInsideBacktrack :: VU.Vector Char -> Z:.X -> [[String]]
 runInsideBacktrack i (Z:.t) = unId $ axiom b
-  where !(Z:.b) = gEnergyMin (energyMinAlg <|| pretty)
+  where !(Z:.b) = gEnergyMin (energyMinAlg <|| prettyChar)
                           (toBacktrack t (undefined :: Id a -> Id a))
                           (chr i)
                           (chrLeft i)
