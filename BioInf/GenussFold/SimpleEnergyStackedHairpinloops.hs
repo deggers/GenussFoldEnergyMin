@@ -36,7 +36,7 @@ S: Struct
 Struct -> unp <<< nt Struct nt
 Struct -> ssr <<< Struct nt
 Struct -> ssl <<< nt Struct
-Struct -> hl <<< ntR Struct ntL
+Struct -> hl <<< ntL Struct ntR
 Struct -> nil <<< e
 
 //
@@ -50,36 +50,27 @@ energyMinAlg = SigEnergyMin
   { ssr = \ x c      -> x
   , ssl = \ c x      -> x
   , nil = \ ()       -> 0
-  , hl =  \ (a,ma) ss (mb,b)   -> if a `myPairs` b && isJust ma && isJust mb then (case ma of {
-                                                          Nothing -> ss+1;
-                                                          Just x -> ss + 1}) else -888888 -- case ma of { Nothing -> whatever; Just x -> s.th}
+  , hl =  \ (ma, a) ss (b, mb)   -> if pairs a b then ss + energyHairpinLoop ma a b mb else -888888
   , unp = \ a ss b   -> if not (pairs a b) then ss else ss
   , h   = SM.foldl' max (-999998)
   }
 {-# INLINE energyMin #-}
 
-pretty :: Monad m => SigEnergyMin m [String] [[String]] Char (Maybe Char, Char) (Char, Maybe Char)
-pretty = SigEnergyMin
-  { ssr = \ [x] _  -> ["-" ++ x]
-  , ssl = \ _ [x]  -> [x ++ "-"]
-  , nil = \ ()     -> [""]
-  , hl = \ _ [x] _ -> ["(" ++ x ++ ")"]
-  , unp = \ _ [x] _ -> ["x" ++ x ++ "x"]
-  , h   = SM.toList
-  }
-{-# INLINE pretty #-}
+energyHairpinLoop :: Maybe Char -> Char -> Char -> Maybe Char -> Int
+energyHairpinLoop (Just maybeLeft) left right (Just maybeRight) = 1
+energyHairpinLoop     Nothing      left right      Nothing      = 1
 
 prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (Maybe Char, Char) (Char, Maybe Char)
 prettyChar = SigEnergyMin
-  { ssr = \ [x] nt     -> [[nt] ++ x]
-  , ssl = \ nt [x]     -> [x ++ [nt]]
+  { ssr = \ [x] nt     -> [x ++ [nt]]
+  , ssl = \ nt [x]     -> [[nt] ++ x]
   , nil = \ ()         -> [""]
-  , hl = \ (ntL, maybeNtL) [x] (maybeNtR, ntR) -> ["(" ++ x ++ ")"]
+  , hl = \ (maybeNtL,ntL) [x] (ntR, maybeNtR) -> ["(" ++ x ++ ")"]
   , unp = \ ntL [x] ntR    -> [[ntL] ++ x ++ [ntR]]
   , h   = SM.toList
   }
-
 {-# INLINE prettyChar #-}
+
 -- @TODO implement missing entropie parameters
 -- @TODO ent_hl :: LoopSize -> Energy
 ent_hl :: Int -> Double
@@ -92,14 +83,6 @@ notEmpty :: Int -> Bool
 notEmpty input
   = input == 0
 
--- Now, if you have custom behavior that you want to have for a certain set of types, then you have bounded polymorphism (also known as "ad hoc"). In Haskell we use type classes for this.
-class MyPairs a b where
-    myPairs :: a -> b -> Bool
-
-instance MyPairs Char Char where
-    myPairs a b = a `pairs` b
-
--- TODO instance MyPairs Just Just where
 pairs :: Char -> Char -> Bool
 pairs !c !d
   =  c=='A' && d=='U'
@@ -109,10 +92,6 @@ pairs !c !d
   || c=='U' && d=='A'
   || c=='U' && d=='G'
 {-# INLINE pairs #-}
-
-energyOf !a !b
-  = 1
-{-# INLINE energyOf #-}
 
 energyMin :: Int -> String -> (Int,[[String]])
 energyMin k inp = (d, take k bs) where
