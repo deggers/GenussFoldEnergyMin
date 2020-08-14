@@ -36,7 +36,8 @@ S: Struct
 Struct -> unp <<< nt Struct nt
 Struct -> ssr <<< Struct nt
 Struct -> ssl <<< nt Struct
-Struct -> hl <<< ntL Struct ntR
+Struct -> hl <<< ntR Struct ntL
+Struct -> stem <<< nt Struct nt
 Struct -> nil <<< e
 
 //
@@ -50,15 +51,19 @@ energyMinAlg = SigEnergyMin
   { ssr = \ x c      -> x
   , ssl = \ c x      -> x
   , nil = \ ()       -> 0
-  , hl =  \ (ma, a) ss (b, mb)   -> if pairs a b then ss + energyHairpinLoop ma a b mb else -888888
+  , hl =  \ (l, mL) ss (mR, r) -> if checkHairpin l mL mR r then ss + energyHairpinLoop l mL mR r else -888888
+  , stem = \ l ss r -> if pairs l r then ss + 1 else -888888
   , unp = \ a ss b   -> if not (pairs a b) then ss else ss
   , h   = SM.foldl' max (-999998)
   }
 {-# INLINE energyMin #-}
 
-energyHairpinLoop :: Maybe Char -> Char -> Char -> Maybe Char -> Int
-energyHairpinLoop (Just maybeLeft) left right (Just maybeRight) = 1
-energyHairpinLoop     Nothing      left right      Nothing      = 1
+checkHairpin :: Char -> Maybe Char -> Maybe Char -> Char -> Bool
+checkHairpin l mL mR r = if pairs l r && isJust mR && isJust mL && not (pairs (fromJust mL) (fromJust mR)) then True else False
+
+energyHairpinLoop :: Char -> Maybe Char -> Maybe Char -> Char -> Int
+energyHairpinLoop l (Just mR) (Just mL) r = 1
+energyHairpinLoop l    Nothing      Nothing            r = 1
 
 prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (Maybe Char, Char) (Char, Maybe Char)
 prettyChar = SigEnergyMin
@@ -66,6 +71,7 @@ prettyChar = SigEnergyMin
   , ssl = \ nt [x]     -> [[nt] ++ x]
   , nil = \ ()         -> [""]
   , hl = \ (maybeNtL,ntL) [x] (ntR, maybeNtR) -> ["(" ++ x ++ ")"]
+  , stem = \ _ [xs] _ -> ["(" ++ xs ++ ")"]
   , unp = \ ntL [x] ntR    -> [[ntL] ++ x ++ [ntR]]
   , h   = SM.toList
   }
