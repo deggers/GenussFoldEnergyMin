@@ -44,35 +44,59 @@ Struct -> nil <<< e
 Emit: EnergyMin
 |]
 
+-- Working Example : UUCGGAGGAUGGCUCAUCAAGCUAAGUAAGGAGCUCCCUGAAGCCAUAUCCGAGGC
+--                   ((((((..((((((((...((((........))))...)).)))))).))))))..
+-- 	Bovine foamy virus miR-BF1 stem-loop :: MI0030366
+{-
+  External loop                           :   -30
+  Interior loop (  1, 54) UG; (  2, 53) UA:   -60
+  Interior loop (  2, 53) UA; (  3, 52) CG:  -240
+  Interior loop (  3, 52) CG; (  4, 51) GC:  -240
+  Interior loop (  4, 51) GC; (  5, 50) GC:  -330
+  Interior loop (  5, 50) GC; (  6, 49) AU:  -240
+  Interior loop (  6, 49) AU; (  9, 47) AU:   260
+  Interior loop (  9, 47) AU; ( 10, 46) UA:  -110
+  Interior loop ( 10, 46) UA; ( 11, 45) GC:  -210
+  Interior loop ( 11, 45) GC; ( 12, 44) GC:  -330
+  Interior loop ( 12, 44) GC; ( 13, 43) CG:  -340
+  Interior loop ( 13, 43) CG; ( 14, 42) UA:  -210
+  Interior loop ( 14, 42) UA; ( 15, 40) CG:   140
+  Interior loop ( 15, 40) CG; ( 16, 39) AU:  -210
+  Interior loop ( 16, 39) AU; ( 20, 35) AU:   340
+  Interior loop ( 20, 35) AU; ( 21, 34) GC:  -210
+  Interior loop ( 21, 34) GC; ( 22, 33) CG:  -340
+  Interior loop ( 22, 33) CG; ( 23, 32) UA:  -210
+  Hairpin  loop ( 23, 32) UA              :   500
+-}
+
 makeAlgebraProduct ''SigEnergyMin
 
-energyMinAlg :: Monad m => SigEnergyMin m Int Int Char (Maybe Char, Char) (Char, Maybe Char)
+energyMinAlg :: Monad m => SigEnergyMin m Int Int Char (Char, Char) (Char, Char)
 energyMinAlg = SigEnergyMin
-  { ssr = \ x c      -> x
-  , ssl = \ c x      -> x
-  , nil = \ ()       -> 0
-  , hl =  \ (l, mL) ss (mR, r) -> if checkHairpin l mL mR r then ss + energyHairpinLoop l mL mR r else -888888
-  , stem = \ l ss r -> if pairs l r then ss + 1 else -888888
-  , unp = \ a ss b   -> if not (pairs a b) then ss else ss
+  { ssr = \ x c                -> x
+  , ssl = \ c x                -> x
+  , nil = \ ()                 -> 0
+  , hl =  \ (l, mr) ss (ml, r) -> if checkHairpin l mr ml r then ss + energyHairpinLoop l mr ml r else -888888
+  , stem = \ l ss r            -> if pairs l r then ss + 1 else -888888
+  , unp = \ a ss b             -> if not (pairs a b) then ss else ss
   , h   = SM.foldl' max (-999998)
   }
 {-# INLINE energyMin #-}
 
-checkHairpin :: Char -> Maybe Char -> Maybe Char -> Char -> Bool
-checkHairpin l mL mR r = if pairs l r && isJust mR && isJust mL && not (pairs (fromJust mL) (fromJust mR)) then True else False
+checkHairpin :: Char -> Char -> Char -> Char -> Bool
+checkHairpin l mL mR r = if pairs l r && not (pairs mL mR) then True else False
 
-energyHairpinLoop :: Char -> Maybe Char -> Maybe Char -> Char -> Int
-energyHairpinLoop l (Just mR) (Just mL) r = 1
-energyHairpinLoop l    Nothing      Nothing            r = 1
+energyHairpinLoop :: Char -> Char -> Char -> Char -> Int
+energyHairpinLoop l mR mL r = 1
 
-prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (Maybe Char, Char) (Char, Maybe Char)
+prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (Char, Char) (Char, Char)
 prettyChar = SigEnergyMin
-  { ssr = \ [x] nt     -> [x ++ [nt]]
-  , ssl = \ nt [x]     -> [[nt] ++ x]
-  , nil = \ ()         -> [""]
-  , hl = \ (maybeNtL,ntL) [x] (ntR, maybeNtR) -> ["(" ++ x ++ ")"]
-  , stem = \ _ [xs] _ -> ["(" ++ xs ++ ")"]
-  , unp = \ ntL [x] ntR    -> [[ntL] ++ x ++ [ntR]]
+  { ssr = \ [xs] r              -> [xs ++ [r]]
+  , ssl = \ l [xs]              -> [[l] ++ xs]
+  , nil = \ ()                  -> [""]
+  , hl = \ (l, lx) [xs] (xr, r) -> ["(" ++ xs ++ ")"]
+  , stem = \ _ [xs] _           -> ["(" ++ xs ++ ")"]
+  , unp = \ l [xs] r            -> [[l] ++ xs ++ [r]]
   , h   = SM.toList
   }
 {-# INLINE prettyChar #-}
@@ -83,11 +107,6 @@ ent_hl :: Int -> Double
 ent_hl 3 = 4.1
 ent_hl 4 = 4.9
 ent_hl _ = error "not implemented yet"
-
--- how to check if SS is empty?
-notEmpty :: Int -> Bool
-notEmpty input
-  = input == 0
 
 pairs :: Char -> Char -> Bool
 pairs !c !d
@@ -110,12 +129,18 @@ energyMin k inp = (d, take k bs) where
 
 type X = ITbl Id Unboxed Subword Int
 
-chrRight :: VG.Vector v x => v x -> Chr (x, Maybe x) x
-{-# Inline chrRight #-}
-chrRight xs = Chr f xs where
-  {-# Inline [0] f #-}
+-- Because of "nt ss nt" it's safe, that a _left nt_ has a _right nt_ regardless of the inner ss
+chrUnsafeRight :: VG.Vector v x => v x -> Chr (x, x) x
+chrUnsafeRight xs = Chr f xs where
   f xs k = ( VG.unsafeIndex xs k
-           , xs VG.!? (k+1)
+           ,  VG.unsafeIndex xs (k+1)
+           )
+
+
+chrUnsafeLeft :: VG.Vector v x => v x -> Chr (x, x) x
+chrUnsafeLeft xs = Chr f xs where
+  f xs k = ( VG.unsafeIndex xs (k-1)
+           , VG.unsafeIndex xs k
            )
 
 runInsideForward :: VU.Vector Char -> Z:.X
@@ -123,8 +148,8 @@ runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                    $ gEnergyMin energyMinAlg
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999) []))
                         (chr i)
-                        (chrLeft i)
-                        (chrRight i)
+                        (chrUnsafeLeft i)
+                        (chrUnsafeRight i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
@@ -133,6 +158,6 @@ runInsideBacktrack i (Z:.t) = unId $ axiom b
   where !(Z:.b) = gEnergyMin (energyMinAlg <|| prettyChar)
                           (toBacktrack t (undefined :: Id a -> Id a))
                           (chr i)
-                          (chrLeft i)
-                          (chrRight i)
+                          (chrUnsafeLeft i)
+                          (chrUnsafeRight i)
 {-# NoInline runInsideBacktrack #-}
