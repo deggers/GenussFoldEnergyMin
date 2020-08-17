@@ -38,6 +38,7 @@ Struct -> ssr <<< Struct nt
 Struct -> ssl <<< nt Struct
 Struct -> hl <<< ntR Struct ntL
 Struct -> stem <<< nt Struct nt
+Struct -> blg <<< nt Struct nt
 Struct -> nil <<< e
 
 //
@@ -73,15 +74,16 @@ makeAlgebraProduct ''SigEnergyMin
 
 type NtPos = (Char,Int)
 
-energyMinAlg :: Monad m => SigEnergyMin m Int Int Char (NtPos, NtPos) (NtPos, NtPos)
+energyMinAlg :: Monad m => SigEnergyMin m Int Int NtPos (NtPos, NtPos) (NtPos, NtPos)
 energyMinAlg = SigEnergyMin
-  { ssr = \ x c                -> x
-  , ssl = \ c x                -> x
-  , nil = \ ()                 -> 0
-  , hl =  \ (a,b) ss (c, d) -> if checkHairpin a b c d then ss + energyHairpinLoop a b c d else -888888
-  , stem = \ l ss r            -> if pairs l r then ss + 1 else -888888
-  , unp = \ a ss b             -> if not (pairs a b) then ss else ss
-  , h   = SM.foldl' max (-999998)
+  { nil  = \           ()            -> 0
+  , ssr  = \           ss _          -> ss
+  , ssl  = \         _ ss            -> ss
+  , hl   = \     (a,b) ss (c, d)     -> if checkHairpin a b c d then ss + energyHairpinLoop a b c d else -888888
+  , stem = \ (a, aPos) ss (b, bPos)  -> if pairs a b then ss + energyStem aPos bPos else -888888
+  , blg  = \ (a, aPos) ss (b, bPos)  -> if pairs a b then ss + energyBulge aPos bPos else -88888
+  , unp  = \ (a, aPos) ss (b, bPos)  -> if not (pairs a b) then ss else ss
+  , h    =   SM.foldl' max (-999998)
   }
 {-# INLINE energyMin #-}
 
@@ -91,14 +93,21 @@ checkHairpin (a,aPos) (b, bPos) (c,cPos) (d,dPos) = if pairs a d && dPos - aPos 
 energyHairpinLoop :: NtPos -> NtPos -> NtPos -> NtPos -> Int
 energyHairpinLoop (l,lPos) (mR, mRPos) mL r = 1
 
-prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (NtPos, NtPos) (NtPos, NtPos)
+energyStem :: Int -> Int -> Int
+energyStem a b = 1
+
+energyBulge :: Int -> Int -> Int
+energyBulge a b = 1
+
+prettyChar :: Monad m => SigEnergyMin m [String] [[String]] NtPos (NtPos, NtPos) (NtPos, NtPos)
 prettyChar = SigEnergyMin
-  { ssr = \ [xs] r              -> [xs ++ [r]]
-  , ssl = \ l [xs]              -> [[l] ++ xs]
-  , nil = \ ()                  -> [""]
-  , hl = \ (l, lx) [xs] (xr, r) -> ["(" ++ xs ++ ")"]
-  , stem = \ _ [xs] _           -> ["(" ++ xs ++ ")"]
-  , unp = \ l [xs] r            -> [[l] ++ xs ++ [r]]
+  { ssr = \           [ss] (a, aPos)  -> [       ss ++ [a]]
+  , ssl = \ (a, aPos) [ss]            -> [[a] ++ ss]
+  , hl = \    (l, lx) [ss] (xr, r)    -> ["(" ++ ss ++ ")"]
+  , stem = \        _ [ss] _          -> ["-(" ++ ss ++ ")-"]
+  , unp = \ (a, aPos) [ss] (b, bPos)  -> [[a] ++ ss ++ [b]]
+  , blg = \         _ [ss] _          -> ["_(" ++ ss ++ ")_"]
+  , nil = \            ()             -> [""]
   , h   = SM.toList
   }
 {-# INLINE prettyChar #-}
@@ -144,11 +153,21 @@ chrUnsafeLeft xs = Chr f xs where
            , (VG.unsafeIndex xs k, k)
            )
 
+-- | @Chr@ with its index.
+-- This version exposes the index, where the character @x@ is located on the input vector.
+chrIx :: VG.Vector v x => v x -> Chr (x, Int)  x
+{-# Inline chrIx #-}
+chrIx xs = Chr f xs where
+  {-# Inline [0] f #-}
+  f xs k = (VG.unsafeIndex xs k, k)
+
+
+
 runInsideForward :: VU.Vector Char -> Z:.X
 runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                    $ gEnergyMin energyMinAlg
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999) []))
-                        (chr i)
+                        (chrIx i)
                         (chrUnsafeLeft i)
                         (chrUnsafeRight i)
   where n = VU.length i
@@ -158,7 +177,7 @@ runInsideBacktrack :: VU.Vector Char -> Z:.X -> [[String]]
 runInsideBacktrack i (Z:.t) = unId $ axiom b
   where !(Z:.b) = gEnergyMin (energyMinAlg <|| prettyChar)
                           (toBacktrack t (undefined :: Id a -> Id a))
-                          (chr i)
+                          (chrIx i)
                           (chrUnsafeLeft i)
                           (chrUnsafeRight i)
 {-# NoInline runInsideBacktrack #-}
