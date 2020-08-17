@@ -86,7 +86,7 @@ energyMinAlg = SigEnergyMin
 {-# INLINE energyMin #-}
 
 checkHairpin :: NtPos -> NtPos -> NtPos -> NtPos -> Bool
-checkHairpin (a,aPos) (b, bPos) (c,cPos) (d,dPos) = if pairs a d && cPos - bPos > 2 && not (pairs b c) then True else False
+checkHairpin (a,aPos) (b, bPos) (c,cPos) (d,dPos) = if pairs a d && dPos - aPos > 3 && not (pairs b c) then True else False
 
 energyHairpinLoop :: NtPos -> NtPos -> NtPos -> NtPos -> Int
 energyHairpinLoop (l,lPos) (mR, mRPos) mL r = 1
