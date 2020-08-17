@@ -71,7 +71,9 @@ Emit: EnergyMin
 
 makeAlgebraProduct ''SigEnergyMin
 
-energyMinAlg :: Monad m => SigEnergyMin m Int Int Char ((Char, Int), (Char,Int)) ((Char, Int), (Char,Int))
+type NtPos = (Char,Int)
+
+energyMinAlg :: Monad m => SigEnergyMin m Int Int Char (NtPos, NtPos) (NtPos, NtPos)
 energyMinAlg = SigEnergyMin
   { ssr = \ x c                -> x
   , ssl = \ c x                -> x
@@ -83,13 +85,13 @@ energyMinAlg = SigEnergyMin
   }
 {-# INLINE energyMin #-}
 
-checkHairpin :: (Char, Int) -> (Char,Int) -> (Char, Int) -> (Char, Int) -> Bool
+checkHairpin :: NtPos -> NtPos -> NtPos -> NtPos -> Bool
 checkHairpin (a,aPos) (b, bPos) (c,cPos) (d,dPos) = if pairs a d && cPos - bPos > 2 && not (pairs b c) then True else False
 
-energyHairpinLoop :: (Char, Int) -> (Char, Int) -> (Char, Int) -> (Char, Int) -> Int
+energyHairpinLoop :: NtPos -> NtPos -> NtPos -> NtPos -> Int
 energyHairpinLoop (l,lPos) (mR, mRPos) mL r = 1
 
-prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char ((Char, Int), (Char,Int)) ((Char,Int), (Char,Int))
+prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (NtPos, NtPos) (NtPos, NtPos)
 prettyChar = SigEnergyMin
   { ssr = \ [xs] r              -> [xs ++ [r]]
   , ssl = \ l [xs]              -> [[l] ++ xs]
