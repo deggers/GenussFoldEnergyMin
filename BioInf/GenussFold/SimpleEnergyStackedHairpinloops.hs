@@ -71,25 +71,25 @@ Emit: EnergyMin
 
 makeAlgebraProduct ''SigEnergyMin
 
-energyMinAlg :: Monad m => SigEnergyMin m Int Int Char (Char, Char) (Char, Char)
+energyMinAlg :: Monad m => SigEnergyMin m Int Int Char ((Char, Int), (Char,Int)) ((Char, Int), (Char,Int))
 energyMinAlg = SigEnergyMin
   { ssr = \ x c                -> x
   , ssl = \ c x                -> x
   , nil = \ ()                 -> 0
-  , hl =  \ (l, mr) ss (ml, r) -> if checkHairpin l mr ml r then ss + energyHairpinLoop l mr ml r else -888888
+  , hl =  \ (a,b) ss (c, d) -> if checkHairpin a b c d then ss + energyHairpinLoop a b c d else -888888
   , stem = \ l ss r            -> if pairs l r then ss + 1 else -888888
   , unp = \ a ss b             -> if not (pairs a b) then ss else ss
   , h   = SM.foldl' max (-999998)
   }
 {-# INLINE energyMin #-}
 
-checkHairpin :: Char -> Char -> Char -> Char -> Bool
-checkHairpin l mL mR r = if pairs l r && not (pairs mL mR) then True else False
+checkHairpin :: (Char, Int) -> (Char,Int) -> (Char, Int) -> (Char, Int) -> Bool
+checkHairpin (a,aPos) (b, bPos) (c,cPos) (d,dPos) = if pairs a d && cPos - bPos > 2 && not (pairs b c) then True else False
 
-energyHairpinLoop :: Char -> Char -> Char -> Char -> Int
-energyHairpinLoop l mR mL r = 1
+energyHairpinLoop :: (Char, Int) -> (Char, Int) -> (Char, Int) -> (Char, Int) -> Int
+energyHairpinLoop (l,lPos) (mR, mRPos) mL r = 1
 
-prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char (Char, Char) (Char, Char)
+prettyChar :: Monad m => SigEnergyMin m [String] [[String]] Char ((Char, Int), (Char,Int)) ((Char,Int), (Char,Int))
 prettyChar = SigEnergyMin
   { ssr = \ [xs] r              -> [xs ++ [r]]
   , ssl = \ l [xs]              -> [[l] ++ xs]
@@ -130,17 +130,16 @@ energyMin k inp = (d, take k bs) where
 type X = ITbl Id Unboxed Subword Int
 
 -- Because of "nt ss nt" it's safe, that a _left nt_ has a _right nt_ regardless of the inner ss
-chrUnsafeRight :: VG.Vector v x => v x -> Chr (x, x) x
+chrUnsafeRight :: VG.Vector v x => v x -> Chr ((x, Int), (x, Int)) x
 chrUnsafeRight xs = Chr f xs where
-  f xs k = ( VG.unsafeIndex xs k
-           ,  VG.unsafeIndex xs (k+1)
+  f xs k = ( (VG.unsafeIndex xs k, k)
+           , (VG.unsafeIndex xs (k+1), k+1)
            )
 
-
-chrUnsafeLeft :: VG.Vector v x => v x -> Chr (x, x) x
+chrUnsafeLeft :: VG.Vector v x => v x -> Chr ((x, Int ),(x, Int)) x
 chrUnsafeLeft xs = Chr f xs where
-  f xs k = ( VG.unsafeIndex xs (k-1)
-           , VG.unsafeIndex xs k
+  f xs k = ( (VG.unsafeIndex xs (k-1), k-1)
+           , (VG.unsafeIndex xs k, k)
            )
 
 runInsideForward :: VU.Vector Char -> Z:.X
