@@ -83,13 +83,19 @@ type Energy = Double
 
 energyMinAlg :: Monad m => SigEnergyMin m Double Double NtPos (NtPos, NtPos) ((Maybe Char, Int), NtPos) (NtPos, (Maybe Char, Int)) (NtPos, NtPos)
 energyMinAlg = SigEnergyMin
-  { nil  = \           ()            -> 0.00
-  , ssr  = \           ss (b,bPos)   -> ss
-  , ssl  = \         (a,aPos) ss     -> ss
-  , hl   = \     (a,b) ss (c, d)      -> if checkHairpin a b c d then energyHairpinLoop a b c d + ss else 888888.00
-  , sr   = \ (_ , (a,aPos)) ss ((b,bPos), _)  -> if pairs a b then ss + energyStem a b else 888888.00
+  { nil  = \           ()                      -> 0.00
+  , ssr  = \           ss (b,bPos)             -> ss
+  , ssl  = \  (a,aPos) ss                      -> ss
+  , hl   = \     (a,b) ss (c, d)               -> if checkHairpin a b c d
+                                                  then energyHairpinLoop a b c d + ss
+                                                  else 888888.00
+  , sr   = \ ((maybeA, maybeAPos) ,(b, bPos))
+             ss
+             ((c, cPos), (maybeD,maybeDPos))  -> if pairs b c
+                                                 then ss + energyStem maybeA b c maybeD
+                                                 else 888888.00
 --  , blg  = \ a b ss c -> if pairs (fst a) (fst c) then ss + energyBulge 1 1 else -88888
-  , unp  = \ (a, aPos) ss (b, bPos)  -> if not (pairs a b) then ss else ss
+  , unp  = \ (a, aPos) ss (b, bPos)           -> if not (pairs a b) then ss else ss
   , h    =   SM.foldl' min (999998.00)
   }
 {-# INLINE energyMin #-}
@@ -108,8 +114,8 @@ energyHairpinLoop (a,aPos) (b, bPos) (c,cPos) (d,dPos) = case dPos - aPos of
 -- if left first and left right can pair is not initiation otherwise it iis and needs penalty :: checkFirstPairing
 -- if checkFirstPairing then addPairingPenalty else 0
 -- get energy which depends on loop of 4 nt -> (this,this) (next,next)
-energyStem :: Nt -> Nt -> Energy
-energyStem a b = -2
+energyStem :: Maybe Nt -> Nt -> Nt -> Maybe Nt -> Energy
+energyStem _ a b _ = -2
 
 
 energyBulge :: Int -> Int -> Energy
