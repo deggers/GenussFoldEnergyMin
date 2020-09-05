@@ -174,12 +174,25 @@ prettyStructCharShort :: Monad m => SigEnergyMin m
   (NtPos, (Maybe Char, Int))
   (NtPos, NtPos)
 prettyStructCharShort = SigEnergyMin
-  { nil = \ () -> [""]
-  , ssr = \           [ss] (a, aPos)  -> [       ss ++ "SSR('" ++ [a] ++ "') "]
-  , ssl = \ (a, aPos) [ss]            -> ["SSL('" ++ [a] ++ "':" ++ show aPos ++ ") " ++ ss]
-  , hl = \  ((a, aPos), (b, bPos)) [ss] ((c, cPos),(d, dPos))  -> ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
-  , sr = \  (_, (a,aPos)) [ss] ((b,bPos), _)  -> ["STEM('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss]
-  , unp = \ (a, aPos) [ss] (b, bPos)  -> ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
+  { nil = \ ()
+        ->  [""]
+
+-- SSR :: Single Stranded Region
+  , ssr = \ [ss] (a, aPos)
+        ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ "') "]
+-- SSR :: Single Stranded Region
+  , ssl = \ (a, aPos) [ss]
+        ->  ["SSR('" ++ [a] ++ "':" ++ show aPos ++ ") " ++ ss]
+-- HPL :: Hairpin Loop
+  , hl = \((a, aPos), (b, bPos)) [ss] ((c, cPos),(d, dPos))
+       ->   ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
+-- STEM :: Connected Region
+  , sr = \  (_, (a,aPos)) [ss] ((b,bPos), _)
+       ->   ["STEM('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss]
+-- UNP :: Unpaired pairs || TODO :: needed with SSR ?
+  , unp = \ (a, aPos) [ss] (b, bPos)
+        ->  ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
+
 --  , blg = \ (a,aPos) _ [ss] (b, bPos)  -> ["BULGE('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss]
   , h   = SM.toList
   }
