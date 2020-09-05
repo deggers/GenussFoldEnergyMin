@@ -81,21 +81,41 @@ type NtPos = (Nt, Pos)
 type Basepair = (Nt, Nt)
 type Energy = Double
 
-energyMinAlg :: Monad m => SigEnergyMin m Double Double NtPos (NtPos, NtPos) ((Maybe Char, Int), NtPos) (NtPos, (Maybe Char, Int)) (NtPos, NtPos)
+energyMinAlg :: Monad m => SigEnergyMin
+  m Double
+  Double
+  NtPos
+  (NtPos, NtPos)
+  ((Maybe Char, Int), NtPos)
+  (NtPos, (Maybe Char, Int))
+  (NtPos, NtPos)
+
 energyMinAlg = SigEnergyMin
-  { nil  = \           ()                      -> 0.00
-  , ssr  = \           ss (b,bPos)             -> ss
-  , ssl  = \  (a,aPos) ss                      -> ss
-  , hl   = \     (a,b) ss (c, d)               -> if checkHairpin a b c d
-                                                  then energyHairpinLoop a b c d + ss
-                                                  else 888888.00
+  { nil  = \ ()
+         -> 0.00
+
+  , ssr  = \ ss (b,bPos)
+         -> ss
+
+  , ssl  = \ (a,aPos) ss
+         -> ss
+
+  , hl   = \ (a,b) ss (c, d)
+         -> if checkHairpin a b c d
+            then energyHairpinLoop a b c d + ss
+            else 888888.00
+
   , sr   = \ ((maybeA, maybeAPos) ,(b, bPos))
              ss
-             ((c, cPos), (maybeD,maybeDPos))  -> if pairs b c
-                                                 then ss + energyStem maybeA b c maybeD
-                                                 else 888888.00
+             ((c, cPos), (maybeD,maybeDPos))
+         -> if pairs b c
+            then ss + energyStem maybeA b c maybeD
+            else 888888.00
+
 --  , blg  = \ a b ss c -> if pairs (fst a) (fst c) then ss + energyBulge 1 1 else -88888
-  , unp  = \ (a, aPos) ss (b, bPos)           -> if not (pairs a b) then ss else ss
+  , unp  = \ (a, aPos) ss (b, bPos)
+           -> if not (pairs a b) then ss else ss
+
   , h    =   SM.foldl' min (999998.00)
   }
 {-# INLINE energyMin #-}
@@ -125,7 +145,14 @@ energyBulge a b = case b-a of
   3 -> 11
   _ -> -88888
 
-prettyChar :: Monad m => SigEnergyMin m [String] [[String]] NtPos (NtPos, NtPos) (Maybe NtPos, NtPos) (NtPos, Maybe NtPos) (NtPos, NtPos)
+prettyChar :: Monad m => SigEnergyMin m
+  [String]
+  [[String]]
+  NtPos
+  (NtPos, NtPos)
+  (Maybe NtPos, NtPos)
+  (NtPos, Maybe NtPos)
+  (NtPos, NtPos)
 prettyChar = SigEnergyMin
   { nil = \ () -> [""]
   , ssr = \           [ss] (a, aPos)  -> [       ss ++ [a]]
@@ -138,7 +165,14 @@ prettyChar = SigEnergyMin
   }
 {-# INLINE prettyChar #-}
 
-prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] NtPos (NtPos, NtPos) ((Maybe Char, Int), NtPos) (NtPos, (Maybe Char, Int)) (NtPos, NtPos)
+prettyStructCharShort :: Monad m => SigEnergyMin m
+  [String]
+  [[String]]
+  NtPos
+  (NtPos, NtPos)
+  ((Maybe Char, Int), NtPos)
+  (NtPos, (Maybe Char, Int))
+  (NtPos, NtPos)
 prettyStructCharShort = SigEnergyMin
   { nil = \ () -> [""]
   , ssr = \           [ss] (a, aPos)  -> [       ss ++ "SSR('" ++ [a] ++ "') "]
