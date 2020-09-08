@@ -30,98 +30,73 @@ N: Struct
 
 T: ntL
 T: ntR
-T: ntMaybeL
-T: ntMaybeR
+T: LntR
+T: LntR
 T: nt
 
 S: Struct
 
-Struct -> ssl <<< nt Struct
+Struct -> ssl <<< ntL Struct nt
 Struct -> ssr <<< Struct nt
-Struct -> unp <<< nt Struct nt
+Struct -> unp <<< ntR Struct ntL
 Struct -> hl <<< ntR Struct ntL
-Struct -> sr <<< ntMaybeL Struct ntMaybeR
+Struct -> sr <<< LntR Struct LntR
 Struct -> nil <<< e
 
 //
 Emit: EnergyMin
 |]
 
--- Working Example : UUCGGAGGAUGGCUCAUCAAGCUAAGUAAGGAGCUCCCUGAAGCCAUAUCCGAGGC
---                   ((((((..((((((((...((((........))))...)).)))))).))))))..
--- 	Bovine foamy virus miR-BF1 stem-loop :: MI0030366
-{-
-  External loop                           :   -30
-  Interior loop (  1, 54) UG; (  2, 53) UA:   -60
-  Interior loop (  2, 53) UA; (  3, 52) CG:  -240
-  Interior loop (  3, 52) CG; (  4, 51) GC:  -240
-  Interior loop (  4, 51) GC; (  5, 50) GC:  -330
-  Interior loop (  5, 50) GC; (  6, 49) AU:  -240
-  Interior loop (  6, 49) AU; (  9, 47) AU:   260
-  Interior loop (  9, 47) AU; ( 10, 46) UA:  -110
-  Interior loop ( 10, 46) UA; ( 11, 45) GC:  -210
-  Interior loop ( 11, 45) GC; ( 12, 44) GC:  -330
-  Interior loop ( 12, 44) GC; ( 13, 43) CG:  -340
-  Interior loop ( 13, 43) CG; ( 14, 42) UA:  -210
-  Interior loop ( 14, 42) UA; ( 15, 40) CG:   140
-  Interior loop ( 15, 40) CG; ( 16, 39) AU:  -210
-  Interior loop ( 16, 39) AU; ( 20, 35) AU:   340
-  Interior loop ( 20, 35) AU; ( 21, 34) GC:  -210
-  Interior loop ( 21, 34) GC; ( 22, 33) CG:  -340
-  Interior loop ( 22, 33) CG; ( 23, 32) UA:  -210
-  Hairpin  loop ( 23, 32) UA              :   500
--}
-
 makeAlgebraProduct ''SigEnergyMin
+
+openPenalty = 4.09
+ignore      = 888888.00
 
 -- Use domain-specific language
 type Pos = Int
 type Nt = Char
 type NtPos = (Nt, Pos)
+type MaybeNtPos = (Maybe Nt, Pos)
 type Basepair = (Nt, Nt)
 type Energy = Double
 
-energyMinAlg :: Monad m => SigEnergyMin
-  m Double
+energyMinAlg :: Monad m => SigEnergyMin m
   Double
+  Double
+  (MaybeNtPos, NtPos, MaybeNtPos)
   NtPos
-  (NtPos, NtPos)
-  ((Maybe Char, Int), NtPos)
-  (NtPos, (Maybe Char, Int))
-  (NtPos, NtPos)
-
+  (MaybeNtPos, NtPos)
+  (NtPos, MaybeNtPos)
 energyMinAlg = SigEnergyMin
   { nil  = \ ()
          -> 0.00
 
-  , ssr  = \ ss (b,bPos)
+  , ssr  = \ ss _
          -> ss
 
-  , ssl  = \ (a,aPos) ss
-         -> ss
+  , ssl  = \ (_ , (a, aPos)) ss (b, bPos)
+         -> if pairs a b
+            then ss + openPenalty - (-0.5) -- openePenalty correct here ?
+            else ignore
 
-  , hl   = \ (a,b) ss (c, d)
-         -> if checkHairpin a b c d
-            then energyHairpinLoop a b c d + ss
-            else 888888.00
-
-  , sr   = \ ((maybeA, maybeAPos) ,(b, bPos))
+  , hl   = \ _ ss _ -> ss
+  , sr   = \ ((maybeA, aPos) , (b,bPos) , (maybeC,cPos))
              ss
-             ((c, cPos), (maybeD,maybeDPos))
-         -> if pairs b c
-            then ss + energyStem maybeA b c maybeD
+             ((maybeD, dPos), (e,ePos) , (maybeF,fPos))
+         -> if pairs (b :: Nt) (e ::Nt)
+            then ss + energyStem maybeA b maybeC maybeD e maybeF
             else 888888.00
 
 --  , blg  = \ a b ss c -> if pairs (fst a) (fst c) then ss + energyBulge 1 1 else -88888
-  , unp  = \ (a, aPos) ss (b, bPos)
-           -> if not (pairs a b) then ss else ss
+-- unp :: TERMINAL MISMATCH
+  , unp  = \ _ ss _ -> ss
 
   , h    =   SM.foldl' min (999998.00)
   }
 {-# INLINE energyMin #-}
 
-checkHairpin :: NtPos -> NtPos -> NtPos -> NtPos -> Bool
-checkHairpin (a,aPos) (b, bPos) (c,cPos) (d,dPos) = if pairs a d && not (pairs b c) then True else False
+checkHairpin :: MaybeNtPos -> NtPos -> NtPos -> MaybeNtPos -> Bool
+checkHairpin _ _ _ _ = False
 
 energyHairpinLoop :: NtPos -> NtPos -> NtPos -> NtPos -> Energy
 energyHairpinLoop (a,aPos) (b, bPos) (c,cPos) (d,dPos) = case dPos - aPos of
@@ -130,13 +105,43 @@ energyHairpinLoop (a,aPos) (b, bPos) (c,cPos) (d,dPos) = case dPos - aPos of
   6 -> 7
   _ -> 999999
 
-
 -- if left first and left right can pair is not initiation otherwise it iis and needs penalty :: checkFirstPairing
 -- if checkFirstPairing then addPairingPenalty else 0
 -- get energy which depends on loop of 4 nt -> (this,this) (next,next)
-energyStem :: Maybe Nt -> Nt -> Nt -> Maybe Nt -> Energy
-energyStem _ a b _ = -2
+energyStem :: Maybe Nt -> Nt -> Maybe Nt ->Maybe Nt -> Nt -> Maybe Nt -> Energy
+-- xCGx :: Not enough information to calculate energy
+-- Otherwise there are 2 basepairs and check if its opening or consecutive
+--energyStem (Just a) b c d e (Just f) = if consecutiveBasepairs (b,e) (c,d)
+--                                   then stackingEnergies (b,e) (c,d)
+--                                   else if pairs b c
+--                                   then 4.09  --Opening penalty
+--                                   else 88888
+energyStem _ _ _ _ _ _ = -2
+--energyStem (Just a) b c d e (Just f) = if pairs a f
+--                                       then stackingEnergies (b,e) (c,d)
+ --                                      else stackingEnergies (b,e) (c,d) + openPenalty
 
+--energyStem Nothing a b c d Nothing = stackingEnergies (a,d) (b,c) + openPenalty
+--energyStem Nothing a b c d (Just e) = 88 -- plus maybe dangling end energy
+--energyStem (Just a) b c d e Nothing = 88
+
+consecutiveBasepairs :: Basepair -> Basepair -> Bool
+consecutiveBasepairs (a,d) (b,c) = if pairs a d && pairs b c
+                                   then True
+                                   else False
+
+
+stackingEnergies :: Basepair -> Basepair -> Double
+-- AU XY
+stackingEnergies ('A','U') ('C','U') = -0.9
+stackingEnergies ('A','U') ('G','U') = -0.6
+stackingEnergies ('A','U') ('C','G') = -2.2
+stackingEnergies ('A','U') ('U','G') = -1.4
+stackingEnergies ('A','U') ('G','C') = -2.1
+stackingEnergies ('A','U') ('U','A') = -1.1
+stackingEnergies ('A','U') ('A','U') = -0.93
+-- CU XY
+stackingEnergies   _   _  = -0.9
 
 energyBulge :: Int -> Int -> Energy
 energyBulge a b = case b-a of
@@ -148,18 +153,17 @@ energyBulge a b = case b-a of
 prettyChar :: Monad m => SigEnergyMin m
   [String]
   [[String]]
+  (MaybeNtPos, NtPos, MaybeNtPos)
   NtPos
-  (NtPos, NtPos)
-  (Maybe NtPos, NtPos)
-  (NtPos, Maybe NtPos)
-  (NtPos, NtPos)
+  (MaybeNtPos, NtPos)
+  (NtPos, MaybeNtPos)
 prettyChar = SigEnergyMin
   { nil = \ () -> [""]
   , ssr = \           [ss] (a, aPos)  -> [       ss ++ [a]]
-  , ssl = \ (a, aPos) [ss]            -> [[a] ++ ss]
+  , ssl = \ (_ ,(a, aPos)) [ss] _            -> [[a] ++ ss]
   , hl = \    (l, lx) [ss] (xr, r)    -> ["(" ++ ss ++ ")"]
-  , sr = \        _ [ss] _            -> ["-(" ++ ss ++ ")-"]
-  , unp = \ (a, aPos) [ss] (b, bPos)  -> [[a] ++ ss ++ [b]]
+  , sr = \       _ [ss] _           -> ["-(" ++ ss ++ ")-"]
+  , unp = \ _ [ss] _  -> [ss]
 --  , blg = \       _ _ [ss] _          -> ["_(" ++ ss ++ ")_"]
   , h   = SM.toList
   }
@@ -168,29 +172,24 @@ prettyChar = SigEnergyMin
 prettyStructCharShort :: Monad m => SigEnergyMin m
   [String]
   [[String]]
+  (MaybeNtPos, NtPos, MaybeNtPos)
   NtPos
-  (NtPos, NtPos)
-  ((Maybe Char, Int), NtPos)
-  (NtPos, (Maybe Char, Int))
-  (NtPos, NtPos)
+  (MaybeNtPos, NtPos)
+  (NtPos, MaybeNtPos)
 prettyStructCharShort = SigEnergyMin
-  { nil = \ ()
-        ->  [""]
-
--- SSR :: Single Stranded Region
-  , ssr = \ [ss] (a, aPos)
-        ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ "') "]
--- SSR :: Single Stranded Region
-  , ssl = \ (a, aPos) [ss]
-        ->  ["SSR('" ++ [a] ++ "':" ++ show aPos ++ ") " ++ ss]
+  { nil = \ () ->  [""]
+-- SSR :: Single Stranded Right
+  , ssr = \ [ss] (a, aPos) ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ ") "]
+-- SSL :: Single Stranded LEFT
+  , ssl = \  (_, (a, aPos)) [ss] (b, bPos) ->  ["STEM('" ++ [a] ++ "':" ++ show aPos ++",'" ++ [b] ++ show bPos ++") " ++ ss]
 -- HPL :: Hairpin Loop
   , hl = \((a, aPos), (b, bPos)) [ss] ((c, cPos),(d, dPos))
        ->   ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
 -- STEM :: Connected Region
-  , sr = \  (_, (a,aPos)) [ss] ((b,bPos), _)
-       ->   ["STEM('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss]
+  , sr = \  (_, (b,bPos), _) [ss] (_, (e,ePos), _)
+    -> ["STEM(" ++ [b] ++ show bPos ++ ":" ++ [e] ++ show ePos ++ ")" ++ ss]
 -- UNP :: Unpaired pairs || TODO :: needed with SSR ?
-  , unp = \ (a, aPos) [ss] (b, bPos)
+  , unp = \ ((a,aPos), _) [ss] (_ ,(b, bPos))
         ->  ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
 
 --  , blg = \ (a,aPos) _ [ss] (b, bPos)  -> ["BULGE('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss]
@@ -207,17 +206,6 @@ pairs !c !d
   || c=='U' && d=='A'
   || c=='U' && d=='G'
 {-# INLINE pairs #-}
-
-stackingEnergies :: Basepair -> Basepair -> Double
--- AU XY
-stackingEnergies ('A','U') ('C','U') = -0.9
-stackingEnergies ('A','U') ('G','U') = -0.6
-stackingEnergies ('A','U') ('C','G') = -2.2
-stackingEnergies ('A','U') ('U','G') = -1.4
-stackingEnergies ('A','U') ('G','C') = -2.1
-stackingEnergies ('A','U') ('U','A') = -1.1
--- CU XY
-stackingEnergies   _   _  = 0
 
 energyMin :: Int -> String -> (Double,[[String]])
 energyMin k inp = (d, take k bs) where
@@ -268,15 +256,23 @@ chrMaybeLeft xs = Chr f xs where
            , (VG.unsafeIndex xs k, k)
            )
 
+maybeLeftChrMaybeRight :: VG.Vector v x => v x -> Chr ((Maybe x,Int), (x,Int), (Maybe x, Int)) x
+{-# Inline maybeLeftChrMaybeRight #-}
+maybeLeftChrMaybeRight xs = Chr f xs where
+  {-# Inline [0] f #-}
+  f xs k = ( (xs VG.!? (k-1), k-1)
+           , (VG.unsafeIndex xs k, k)
+           , (xs VG.!? (k+1), k+1)
+           )
+
 runInsideForward :: VU.Vector Char -> Z:.X
 runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                    $ gEnergyMin energyMinAlg
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
+                        (maybeLeftChrMaybeRight i)
                         (chrIx i)
-                        (chrUnsafeLeft i)
                         (chrMaybeLeft i)
                         (chrMaybeRight i)
-                        (chrUnsafeRight i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
@@ -284,9 +280,8 @@ runInsideBacktrack :: VU.Vector Char -> Z:.X -> [[String]]
 runInsideBacktrack i (Z:.t) = unId $ axiom b
   where !(Z:.b) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
                           (toBacktrack t (undefined :: Id a -> Id a))
+                          (maybeLeftChrMaybeRight i)
                           (chrIx i)
-                          (chrUnsafeLeft i)
                           (chrMaybeLeft i)
                           (chrMaybeRight i)
-                          (chrUnsafeRight i)
 {-# NoInline runInsideBacktrack #-}
