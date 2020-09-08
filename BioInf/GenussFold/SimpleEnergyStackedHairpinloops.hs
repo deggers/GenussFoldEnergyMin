@@ -37,8 +37,8 @@ T: nt
 S: Struct
 
 Struct -> ssl <<< ntL Struct nt
-Struct -> ssr <<< Struct nt
-Struct -> unp <<< ntR Struct ntL
+Struct -> ssr <<< Struct LntR
+Struct -> unp <<< ntL Struct ntR
 Struct -> hl <<< ntR Struct ntL
 Struct -> sr <<< LntR Struct LntR
 Struct -> nil <<< e
@@ -68,32 +68,41 @@ energyMinAlg :: Monad m => SigEnergyMin m
   (MaybeNtPos, NtPos)
   (NtPos, MaybeNtPos)
 energyMinAlg = SigEnergyMin
-  { nil  = \ ()
-         -> 0.00
+  { nil  = \ () -> 0.00
 
-  , ssr  = \ ss _
-         -> ss
+  , ssr  = \ ss ((maybeA,aPos), (b, bPos), (maybeC,cPos))
+         -> if maybePairs maybeA maybeC
+            then ignore
+            else ss
 
   , ssl  = \ (_ , (a, aPos)) ss (b, bPos)
          -> if pairs a b
             then ss + openPenalty - (-0.5) -- openePenalty correct here ?
             else ignore
 
-  , hl   = \ _ ss _ -> ss
+  , hl   = \ _ ss _ -> ignore
+
   , sr   = \ ((maybeA, aPos) , (b,bPos) , (maybeC,cPos))
              ss
              ((maybeD, dPos), (e,ePos) , (maybeF,fPos))
          -> if pairs (b :: Nt) (e ::Nt)
             then ss + energyStem maybeA b maybeC maybeD e maybeF
-            else 888888.00
+            else ignore
 
 --  , blg  = \ a b ss c -> if pairs (fst a) (fst c) then ss + energyBulge 1 1 else -88888
 -- unp :: TERMINAL MISMATCH
-  , unp  = \ _ ss _ -> ss
+  , unp  = \ ((maybeLeft, leftPos), (a, aPos)) ss ((b, bPos), (maybeRight, right))
+    -> if (not $ pairs a b) && (maybePairs maybeLeft maybeRight)
+       then ss - (0.5)
+       else ignore
 
   , h    =   SM.foldl' min (999998.00)
   }
 {-# INLINE energyMin #-}
+
+maybePairs :: Maybe Nt -> Maybe Nt -> Bool
+maybePairs (Just a) (Just b) = pairs a b
+maybePairs _ _               = False
 
 checkHairpin :: MaybeNtPos -> NtPos -> NtPos -> MaybeNtPos -> Bool
 checkHairpin _ _ _ _ = False
@@ -109,14 +118,18 @@ energyHairpinLoop (a,aPos) (b, bPos) (c,cPos) (d,dPos) = case dPos - aPos of
 -- if checkFirstPairing then addPairingPenalty else 0
 -- get energy which depends on loop of 4 nt -> (this,this) (next,next)
 energyStem :: Maybe Nt -> Nt -> Maybe Nt ->Maybe Nt -> Nt -> Maybe Nt -> Energy
--- xCGx :: Not enough information to calculate energy
 -- Otherwise there are 2 basepairs and check if its opening or consecutive
---energyStem (Just a) b c d e (Just f) = if consecutiveBasepairs (b,e) (c,d)
---                                   then stackingEnergies (b,e) (c,d)
---                                   else if pairs b c
---                                   then 4.09  --Opening penalty
---                                   else 88888
-energyStem _ _ _ _ _ _ = -2
+energyStem (Just a) b (Just c)
+           (Just d) e (Just f) = if consecutiveBasepairs (a,f) (b,e)
+                                   then stackingEnergies (a,f) (b,e)
+                                   else if pairs b e
+                                   then 4.09  --Opening penalty
+                                   else ignore
+energyStem Nothing  b (Just c)
+           (Just d) e Nothing = if pairs b e
+                                then 4.09 --opening penalty
+                                else ignore
+energyStem _ _ _ _ _ _ = ignore
 --energyStem (Just a) b c d e (Just f) = if pairs a f
 --                                       then stackingEnergies (b,e) (c,d)
  --                                      else stackingEnergies (b,e) (c,d) + openPenalty
@@ -150,25 +163,6 @@ energyBulge a b = case b-a of
   3 -> 11
   _ -> -88888
 
-prettyChar :: Monad m => SigEnergyMin m
-  [String]
-  [[String]]
-  (MaybeNtPos, NtPos, MaybeNtPos)
-  NtPos
-  (MaybeNtPos, NtPos)
-  (NtPos, MaybeNtPos)
-prettyChar = SigEnergyMin
-  { nil = \ () -> [""]
-  , ssr = \           [ss] (a, aPos)  -> [       ss ++ [a]]
-  , ssl = \ (_ ,(a, aPos)) [ss] _            -> [[a] ++ ss]
-  , hl = \    (l, lx) [ss] (xr, r)    -> ["(" ++ ss ++ ")"]
-  , sr = \       _ [ss] _           -> ["-(" ++ ss ++ ")-"]
-  , unp = \ _ [ss] _  -> [ss]
---  , blg = \       _ _ [ss] _          -> ["_(" ++ ss ++ ")_"]
-  , h   = SM.toList
-  }
-{-# INLINE prettyChar #-}
-
 prettyStructCharShort :: Monad m => SigEnergyMin m
   [String]
   [[String]]
@@ -179,18 +173,19 @@ prettyStructCharShort :: Monad m => SigEnergyMin m
 prettyStructCharShort = SigEnergyMin
   { nil = \ () ->  [""]
 -- SSR :: Single Stranded Right
-  , ssr = \ [ss] (a, aPos) ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ ") "]
+  , ssr = \ [ss] (_, (a, aPos), _) ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ ") "]
 -- SSL :: Single Stranded LEFT
-  , ssl = \  (_, (a, aPos)) [ss] (b, bPos) ->  ["STEM('" ++ [a] ++ "':" ++ show aPos ++",'" ++ [b] ++ show bPos ++") " ++ ss]
+  , ssl = \  (_, (a, aPos)) [ss] (b, bPos)
+    -> ["STEM('" ++ [a] ++ "':" ++ show aPos ++",'" ++ [b] ++ show bPos ++") " ++ ss]
 -- HPL :: Hairpin Loop
   , hl = \((a, aPos), (b, bPos)) [ss] ((c, cPos),(d, dPos))
-       ->   ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
+    -> ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
 -- STEM :: Connected Region
   , sr = \  (_, (b,bPos), _) [ss] (_, (e,ePos), _)
     -> ["STEM(" ++ [b] ++ show bPos ++ ":" ++ [e] ++ show ePos ++ ")" ++ ss]
 -- UNP :: Unpaired pairs || TODO :: needed with SSR ?
-  , unp = \ ((a,aPos), _) [ss] (_ ,(b, bPos))
-        ->  ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
+  , unp = \ (_, (a,aPos)) [ss] ((b, bPos), _)
+    -> ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
 
 --  , blg = \ (a,aPos) _ [ss] (b, bPos)  -> ["BULGE('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss]
   , h   = SM.toList
