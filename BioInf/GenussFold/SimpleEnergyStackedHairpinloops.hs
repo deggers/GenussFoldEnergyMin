@@ -27,6 +27,7 @@ Verbose
 
 Grammar: EnergyMin
 N: Struct
+N: Closed
 
 T: ntL
 T: ntR
@@ -36,12 +37,15 @@ T: nt
 
 S: Struct
 
-Struct -> ssl <<< ntL Struct nt
+Struct -> ssl <<< LntR Struct
 Struct -> ssr <<< Struct LntR
 Struct -> unp <<< ntL Struct ntR
 Struct -> hl <<< ntR Struct ntL
-Struct -> sr <<< LntR Struct LntR
+Struct -> sr <<< LntR Closed LntR
 Struct -> nil <<< e
+
+Closed -> closed_sr <<< LntR Closed LntR
+Closed -> nil <<< e
 
 //
 Emit: EnergyMin
@@ -60,7 +64,8 @@ type MaybeNtPos = (Maybe Nt, Pos)
 type Basepair = (Nt, Nt)
 type Energy = Double
 
-energyMinAlg :: Monad m => SigEnergyMin m
+energyMinAlg :: Monad m =>
+  SigEnergyMin m
   Double
   Double
   (MaybeNtPos, NtPos, MaybeNtPos)
@@ -75,10 +80,10 @@ energyMinAlg = SigEnergyMin
             then ignore
             else ss
 
-  , ssl  = \ (_ , (a, aPos)) ss (b, bPos)
-         -> if pairs a b
-            then ss + openPenalty - (-0.5) -- openePenalty correct here ?
-            else ignore
+  , ssl  = \ ((maybeA, aPos), (b, bPos), (maybeC, cPos)) ss
+         -> if maybePairs maybeA maybeC
+            then ignore
+            else ss
 
   , hl   = \ _ ss _ -> ignore
 
@@ -86,14 +91,18 @@ energyMinAlg = SigEnergyMin
              ss
              ((maybeD, dPos), (e,ePos) , (maybeF,fPos))
          -> if pairs (b :: Nt) (e ::Nt)
-            then ss + energyStem maybeA b maybeC maybeD e maybeF
+            then ss - 2 -- energyStem maybeA b maybeC maybeD e maybeF
             else ignore
 
---  , blg  = \ a b ss c -> if pairs (fst a) (fst c) then ss + energyBulge 1 1 else -88888
+  , closed_sr = \ (_, (a,aPos), _) ss (_, (b, bPos),_)
+              -> if pairs a b
+                 then ss - 1
+                 else 44444
+
 -- unp :: TERMINAL MISMATCH
   , unp  = \ ((maybeLeft, leftPos), (a, aPos)) ss ((b, bPos), (maybeRight, right))
     -> if (not $ pairs a b) && (maybePairs maybeLeft maybeRight)
-       then ss - (0.5)
+       then ss - 0.5
        else ignore
 
   , h    =   SM.foldl' min (999998.00)
@@ -106,6 +115,79 @@ maybePairs _ _               = False
 
 checkHairpin :: MaybeNtPos -> NtPos -> NtPos -> MaybeNtPos -> Bool
 checkHairpin _ _ _ _ = False
+
+prettyStructCharShort :: Monad m => SigEnergyMin m
+  [String]
+  [[String]]
+  (MaybeNtPos, NtPos, MaybeNtPos)
+  NtPos
+  (MaybeNtPos, NtPos)
+  (NtPos, MaybeNtPos)
+prettyStructCharShort = SigEnergyMin
+  { nil = \ () ->  [""]
+-- SSR :: Single Stranded Right
+  , ssr = \ [ss] (_, (a, aPos), _) ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ ") "]
+-- SSL :: Single Stranded LEFT
+  , ssl = \  (_, (a, aPos), _) [ss]
+    -> ["SSL('" ++ [a] ++ "':" ++ show aPos ++") " ++ ss]
+-- HPL :: Hairpin Loop
+  , hl = \((a, aPos), (b, bPos)) [ss] ((c, cPos),(d, dPos))
+    -> ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
+-- STEM :: Connected Region
+  , sr = \  (_, (b,bPos), _) [ss] (_, (e,ePos), _)
+    -> ["STEM(" ++ [b] ++ show bPos ++ ":" ++ [e] ++ show ePos ++ ")" ++ ss]
+-- UNP :: Unpaired pairs || TODO :: needed with SSR ?
+  , unp = \ (_, (a,aPos)) [ss] ((b, bPos), _)
+    -> ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
+
+  , closed_sr = \ _ [ss] _ -> ["closed " ++ ss]
+
+  , h   = SM.toList
+  }
+{-# INLINE prettyStructCharShort #-}
+
+energyMin :: Int -> String -> (Double,[[String]])
+energyMin k inp = (d, take k bs) where
+  i = VU.fromList . Prelude.map toUpper $ inp
+  n = VU.length i
+  !(Z:.t:.l) = runInsideForward i
+  d = unId $ axiom t
+  bs = runInsideBacktrack i (Z:.t:.l)
+{-# NOINLINE energyMinAlg #-}
+
+type X = ITbl Id Unboxed Subword Double
+type Y = ITbl Id Unboxed Subword Double
+
+--runInsideForward :: VU.Vector Char -> Z:.X
+runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
+                   $ gEnergyMin energyMinAlg
+                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
+                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
+                        (maybeLeftChrMaybeRight i)
+                        (chrMaybeLeft i)
+                        (chrMaybeRight i)
+  where n = VU.length i
+{-# NoInline runInsideForward #-}
+
+runInsideBacktrack :: VU.Vector Char -> Z:.X:.Y -> [[String]]
+runInsideBacktrack i (Z:.t:.l) = unId $ axiom b
+  where !(Z:.b:.c) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
+                          (toBacktrack t (undefined :: Id a -> Id a))
+                          (toBacktrack l (undefined :: Id a -> Id a))
+                          (maybeLeftChrMaybeRight i)
+                          (chrMaybeLeft i)
+                          (chrMaybeRight i)
+{-# NoInline runInsideBacktrack #-}
+
+pairs :: Char -> Char -> Bool
+pairs !c !d
+  =  c=='A' && d=='U'
+  || c=='C' && d=='G'
+  || c=='G' && d=='C'
+  || c=='G' && d=='U'
+  || c=='U' && d=='A'
+  || c=='U' && d=='G'
+{-# INLINE pairs #-}
 
 energyHairpinLoop :: NtPos -> NtPos -> NtPos -> NtPos -> Energy
 energyHairpinLoop (a,aPos) (b, bPos) (c,cPos) (d,dPos) = case dPos - aPos of
@@ -162,70 +244,6 @@ energyBulge a b = case b-a of
   2 -> 4
   3 -> 11
   _ -> -88888
-
-prettyStructCharShort :: Monad m => SigEnergyMin m
-  [String]
-  [[String]]
-  (MaybeNtPos, NtPos, MaybeNtPos)
-  NtPos
-  (MaybeNtPos, NtPos)
-  (NtPos, MaybeNtPos)
-prettyStructCharShort = SigEnergyMin
-  { nil = \ () ->  [""]
--- SSR :: Single Stranded Right
-  , ssr = \ [ss] (_, (a, aPos), _) ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ ") "]
--- SSL :: Single Stranded LEFT
-  , ssl = \  (_, (a, aPos)) [ss] (b, bPos)
-    -> ["STEM('" ++ [a] ++ "':" ++ show aPos ++",'" ++ [b] ++ show bPos ++") " ++ ss]
--- HPL :: Hairpin Loop
-  , hl = \((a, aPos), (b, bPos)) [ss] ((c, cPos),(d, dPos))
-    -> ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
--- STEM :: Connected Region
-  , sr = \  (_, (b,bPos), _) [ss] (_, (e,ePos), _)
-    -> ["STEM(" ++ [b] ++ show bPos ++ ":" ++ [e] ++ show ePos ++ ")" ++ ss]
--- UNP :: Unpaired pairs || TODO :: needed with SSR ?
-  , unp = \ (_, (a,aPos)) [ss] ((b, bPos), _)
-    -> ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
-
---  , blg = \ (a,aPos) _ [ss] (b, bPos)  -> ["BULGE('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss]
-  , h   = SM.toList
-  }
-{-# INLINE prettyStructCharShort #-}
-
-pairs :: Char -> Char -> Bool
-pairs !c !d
-  =  c=='A' && d=='U'
-  || c=='C' && d=='G'
-  || c=='G' && d=='C'
-  || c=='G' && d=='U'
-  || c=='U' && d=='A'
-  || c=='U' && d=='G'
-{-# INLINE pairs #-}
-
-energyMin :: Int -> String -> (Double,[[String]])
-energyMin k inp = (d, take k bs) where
-  i = VU.fromList . Prelude.map toUpper $ inp
-  n = VU.length i
-  !(Z:.t) = runInsideForward i
-  d = unId $ axiom t
-  bs = runInsideBacktrack i (Z:.t)
-{-# NOINLINE energyMinAlg #-}
-
-type X = ITbl Id Unboxed Subword Double
-
--- Because of "nt ss nt" it's safe, that a _left nt_ has a _right nt_ regardless of the inner ss
-chrUnsafeRight :: VG.Vector v x => v x -> Chr ((x, Int), (x, Int)) x
-chrUnsafeRight xs = Chr f xs where
-  f xs k = ( (VG.unsafeIndex xs k, k)
-           , (VG.unsafeIndex xs (k+1), k+1)
-           )
-
-chrUnsafeLeft :: VG.Vector v x => v x -> Chr ((x, Int ),(x, Int)) x
-chrUnsafeLeft xs = Chr f xs where
-  f xs k = ( (VG.unsafeIndex xs (k-1), k-1)
-           , (VG.unsafeIndex xs k, k)
-           )
-
 -- | @Chr@ with its index.
 -- This version exposes the index, where the character @x@ is located on the input vector.
 chrIx :: VG.Vector v x => v x -> Chr (x, Int)  x
@@ -259,24 +277,3 @@ maybeLeftChrMaybeRight xs = Chr f xs where
            , (VG.unsafeIndex xs k, k)
            , (xs VG.!? (k+1), k+1)
            )
-
-runInsideForward :: VU.Vector Char -> Z:.X
-runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
-                   $ gEnergyMin energyMinAlg
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
-                        (maybeLeftChrMaybeRight i)
-                        (chrIx i)
-                        (chrMaybeLeft i)
-                        (chrMaybeRight i)
-  where n = VU.length i
-{-# NoInline runInsideForward #-}
-
-runInsideBacktrack :: VU.Vector Char -> Z:.X -> [[String]]
-runInsideBacktrack i (Z:.t) = unId $ axiom b
-  where !(Z:.b) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
-                          (toBacktrack t (undefined :: Id a -> Id a))
-                          (maybeLeftChrMaybeRight i)
-                          (chrIx i)
-                          (chrMaybeLeft i)
-                          (chrMaybeRight i)
-{-# NoInline runInsideBacktrack #-}
