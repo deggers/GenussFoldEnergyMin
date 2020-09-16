@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 module BioInf.GenussFold.SimpleEnergyStackedHairpinLoops where
 
 import           Control.Applicative
@@ -31,7 +32,8 @@ N: a_Struct
 N: b_Closed
 N: c_Region
 N: d_Region3
-
+N: e_M
+N: f_M1
 
 T: nt
 
@@ -43,7 +45,17 @@ a_Struct -> nil      <<< e
 
 b_Closed -> hairpin  <<< nt d_Region3 nt
 b_Closed -> interior <<< c_Region nt b_Closed nt c_Region
+b_Closed -> mlr   <<< nt e_M nt nt f_M1 nt
 b_Closed -> nil      <<< e
+
+e_M -> mcm_1 <<< c_Region nt b_Closed nt
+e_M -> mcm_2 <<< nt e_M nt nt b_Closed nt
+e_M -> mcm_3 <<< nt e_M nt c_Region
+e_M -> nil <<< e
+
+f_M1 -> ocm_1 <<< nt f_M1 nt c_Region
+f_M1 -> ocm_2 <<< nt b_Closed nt
+f_M1 -> nil <<< e
 
 c_Region -> region   <<< nt c_Region
 c_Region -> nil      <<< e
@@ -53,21 +65,6 @@ d_Region3 -> region3 <<< nt nt nt c_Region
 //
 Emit: EnergyMin
 |]
-
-{-
-N: e_M
-N: f_M1
-
-
-e_M -> mcm_1 <<< c_Region b_Closed
-e_M -> mcm_2 <<< e_M b_Closed
-e_M -> mcm_3 <<< e_M nt
-e_M -> nil <<< e
-
-f_M1 -> ocm_1 <<< f_M1 nt
-f_M1 -> ocm_2 <<< b_Closed
-f_M1 -> nil <<< e
--}
 
 makeAlgebraProduct ''SigEnergyMin
 
@@ -82,18 +79,16 @@ energyMinAlg = SigEnergyMin
   , interior = \ _ (_,(a,aPos),_) ss (_,(b,bPos),_) _ -> if pairs a b
                                                          then ss - 1
                                                          else ignore
-  {-
-  , unk_ml = \ m m1 -> ignore
--- Multi Component Multiloop2Case 1 :: mcm_1 <<< Region Closed
-  , mcm_1 = \ region closed-> ignore
--- Multi Component Multiloop Case 2 :: mcm_2 <<< M Closed
-  , mcm_2 = \ m closed -> ignore -- Multi Component Multiloop Case 3 :: mcm_3 <<< M nt
-  , mcm_3 = \ m _ -> ignore
--- One Component Multiloop Case 1 :: ocm_1 <<< M1 nt
-  , ocm_1 = \  m1 _ -> ignore
--- One Component Multiloop Case 2 :: ocm_2 <<< Closed
-  , ocm_2 = \ closed -> ignore
--}
+  , mlr = \ (_,(a,aPos),_) m (_,(b,bPos),_) (_,(c,cPos),_) m1 (_,(d,dPos),_) -> if
+       | pairs a b && pairs c d -> m + m1
+       | pairs a b -> m
+       | pairs c d -> m1
+       | otherwise -> ignore
+  , mcm_1 = \ region (_,(a,aPos),_) closed (_,(b,bPos),_) -> if pairs a b then closed else ignore
+  , mcm_2 = \ (_,(a,aPos),_) m (_,(b,bPos),_) (_,(c,cPos),_) closed (_,(d,dPos),_) -> ignore -- Multi Component Multiloop Case 3 :: mcm_3 <<< M nt
+  , mcm_3 = \ (_,(a,aPos),_) m (_,(b,bPos),_) region -> if pairs a b then m + region else region
+  , ocm_1 = \ (_,(a,aPos),_) m1 (_,(b,bPos),_) region -> if pairs a b then m1 + region else region
+  , ocm_2 = \ (_,(a,aPos),_) closed (_,(b,bPos),_) -> if pairs a b then closed else ignore
   , region  = \ _ ss      -> ss
   , region3 = \ _ _ _ ss -> ss
   , h    =   SM.foldl' min (ignore)
@@ -107,14 +102,11 @@ prettyStructCharShort = SigEnergyMin
   , paired = \ (_,(a,aPos),_) [x] (_,(b,bPos),_) [y] -> ["(" ++ x ++ ")" ++ y]
   , hairpin = \  _ [ss] _  -> ["(" ++ss ++")"]
   , interior = \ [x] a [ss] b [y] -> [x ++ "(" ++ ss ++ ")" ++ y]
-{-
-  , unk_ml = \ [m] [m1] -> ["unk.."]
-  , mcm_1 = \ [region] [closed] -> [".."]
-  , mcm_2 = \ [m] [closed] -> [".."]
-  , mcm_3 = \ [m] _ -> [".."]
-  , ocm_1 = \ [m1] _ -> [".."]
-  , ocm_2 = \ [closed] -> ["..."]
--}
+  , mlr = \ _ [m]_ _ [m1] _ -> ["unk.."]
+  , mcm_1 = \ [region] _ [closed] _ -> [".."]
+  , mcm_2 = \ _ [m] _ _ [closed] _ -> [".."]
+  , mcm_3 = \ _ [m] _ _ -> [".."]
+  , ocm_1 = \ _ [m1] _ _ -> [".."]
   , region = \ _ [ss] -> ["." ++ ss]
   , region3 = \ _ _ _ [ss] -> ["..." ++ ss]
   , h   = SM.toList
@@ -135,9 +127,9 @@ type Energy = Double
 energyMin :: Int -> String -> (Double,[[String]])
 energyMin k inp = (z, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
-  !(Z:.a:.b:.c:.d) = runInsideForward i
+  !(Z:.a:.b:.c:.d:.e:.f) = runInsideForward i
   z = unId $ axiom a
-  bs = runInsideBacktrack i (Z:.a:.b:.c:.d)
+  bs = runInsideBacktrack i (Z:.a:.b:.c:.d:.e:.f)
 {-# NOINLINE energyMinAlg #-}
 
 type X = ITbl Id Unboxed Subword Double
@@ -150,17 +142,21 @@ runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                         (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-266999.0) []))
                         (ITbl 0 2 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-366999.0) []))
                         (ITbl 0 3 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-466999.0) []))
+                        (ITbl 0 4 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-566999.0) []))
+                        (ITbl 0 5 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
                         (maybeLeftChrMaybeRight i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X -> [[String]]
-runInsideBacktrack i (Z:.a:.b:.c:.d) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct
-  where !(Z:.g:.h:.j:.k) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
+runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X:.X:.X -> [[String]]
+runInsideBacktrack i (Z:.a:.b:.c:.d:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct
+  where !(Z:.g:.h:.j:.k:.l:.m) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
                           (toBacktrack a (undefined :: Id a -> Id a))
                           (toBacktrack b (undefined :: Id b -> Id b))
                           (toBacktrack c (undefined :: Id c -> Id c))
                           (toBacktrack d (undefined :: Id d -> Id d))
+                          (toBacktrack e (undefined :: Id e -> Id e))
+                          (toBacktrack f (undefined :: Id f -> Id f))
                           (maybeLeftChrMaybeRight i)
 {-# NoInline runInsideBacktrack #-}
 
