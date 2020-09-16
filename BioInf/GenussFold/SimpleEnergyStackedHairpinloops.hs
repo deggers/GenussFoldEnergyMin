@@ -21,40 +21,108 @@ import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage
 
 -- | Define signature and grammar
-
+{-  Next Nonterminals
+-}
 [formalLanguage|
 Verbose
 
 Grammar: EnergyMin
-N: Struct
-N: Closed
+N: a_Struct
+N: b_Closed
+N: c_Region
+N: d_Region3
 
-T: ntL
-T: ntR
-T: LntR
-T: LntR
+
 T: nt
 
-S: Struct
+S: a_Struct
 
-Struct -> ssl <<< LntR Struct
-Struct -> ssr <<< Struct LntR
-Struct -> unp <<< ntL Struct ntR
-Struct -> hl <<< ntR Struct ntL
-Struct -> sr <<< LntR Closed LntR
-Struct -> nil <<< e
+a_Struct -> unpaired <<< nt a_Struct
+a_Struct -> paired   <<< nt b_Closed nt a_Struct
+a_Struct -> nil      <<< e
 
-Closed -> closed_sr <<< LntR Closed LntR
-Closed -> nil <<< e
+b_Closed -> hairpin  <<< nt d_Region3 nt
+b_Closed -> interior <<< c_Region nt b_Closed nt c_Region
+b_Closed -> nil      <<< e
+
+c_Region -> region   <<< nt c_Region
+c_Region -> nil      <<< e
+
+d_Region3 -> region3 <<< nt nt nt c_Region
 
 //
 Emit: EnergyMin
 |]
 
+{-
+N: e_M
+N: f_M1
+
+
+e_M -> mcm_1 <<< c_Region b_Closed
+e_M -> mcm_2 <<< e_M b_Closed
+e_M -> mcm_3 <<< e_M nt
+e_M -> nil <<< e
+
+f_M1 -> ocm_1 <<< f_M1 nt
+f_M1 -> ocm_2 <<< b_Closed
+f_M1 -> nil <<< e
+-}
+
 makeAlgebraProduct ''SigEnergyMin
 
+energyMinAlg :: Monad m => SigEnergyMin m Double Double (MaybeNtPos, NtPos, MaybeNtPos)
+energyMinAlg = SigEnergyMin
+  { nil  = \ () -> 0.00
+  , unpaired = \ _ ss -> ss
+  , paired = \ (_,(a,aPos),_) x (_, (b,bPos), _) y -> if pairs a b
+                                                      then x + y - 1
+                                                      else ignore
+  , hairpin = \ (_,(a,aPos),_) ss (_,(b,bPos),_)  -> if pairs a b then ss - 1 else ignore
+  , interior = \ _ (_,(a,aPos),_) ss (_,(b,bPos),_) _ -> if pairs a b
+                                                         then ss - 1
+                                                         else ignore
+  {-
+  , unk_ml = \ m m1 -> ignore
+-- Multi Component Multiloop2Case 1 :: mcm_1 <<< Region Closed
+  , mcm_1 = \ region closed-> ignore
+-- Multi Component Multiloop Case 2 :: mcm_2 <<< M Closed
+  , mcm_2 = \ m closed -> ignore -- Multi Component Multiloop Case 3 :: mcm_3 <<< M nt
+  , mcm_3 = \ m _ -> ignore
+-- One Component Multiloop Case 1 :: ocm_1 <<< M1 nt
+  , ocm_1 = \  m1 _ -> ignore
+-- One Component Multiloop Case 2 :: ocm_2 <<< Closed
+  , ocm_2 = \ closed -> ignore
+-}
+  , region  = \ _ ss      -> ss
+  , region3 = \ _ _ _ ss -> ss
+  , h    =   SM.foldl' min (ignore)
+  }
+{-# INLINE energyMin #-}
+
+prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] (MaybeNtPos, NtPos, MaybeNtPos)
+prettyStructCharShort = SigEnergyMin
+  { nil = \ () ->  [""]
+  , unpaired = \ (_, (a, aPos), _) [ss] -> ["." ++ ss]
+  , paired = \ (_,(a,aPos),_) [x] (_,(b,bPos),_) [y] -> ["(" ++ x ++ ")" ++ y]
+  , hairpin = \  _ [ss] _  -> ["(" ++ss ++")"]
+  , interior = \ [x] a [ss] b [y] -> [x ++ "(" ++ ss ++ ")" ++ y]
+{-
+  , unk_ml = \ [m] [m1] -> ["unk.."]
+  , mcm_1 = \ [region] [closed] -> [".."]
+  , mcm_2 = \ [m] [closed] -> [".."]
+  , mcm_3 = \ [m] _ -> [".."]
+  , ocm_1 = \ [m1] _ -> [".."]
+  , ocm_2 = \ [closed] -> ["..."]
+-}
+  , region = \ _ [ss] -> ["." ++ ss]
+  , region3 = \ _ _ _ [ss] -> ["..." ++ ss]
+  , h   = SM.toList
+  }
+{-# INLINE prettyStructCharShort #-}
+
 openPenalty = 4.09
-ignore      = 888888.00
+ignore      = 9999999.00
 
 -- Use domain-specific language
 type Pos = Int
@@ -64,119 +132,36 @@ type MaybeNtPos = (Maybe Nt, Pos)
 type Basepair = (Nt, Nt)
 type Energy = Double
 
-energyMinAlg :: Monad m =>
-  SigEnergyMin m
-  Double
-  Double
-  (MaybeNtPos, NtPos, MaybeNtPos)
-  NtPos
-  (MaybeNtPos, NtPos)
-  (NtPos, MaybeNtPos)
-energyMinAlg = SigEnergyMin
-  { nil  = \ () -> 0.00
-
-  , ssr  = \ ss ((maybeA,aPos), (b, bPos), (maybeC,cPos))
-         -> if maybePairs maybeA maybeC
-            then ignore
-            else ss
-
-  , ssl  = \ ((maybeA, aPos), (b, bPos), (maybeC, cPos)) ss
-         -> if maybePairs maybeA maybeC
-            then ignore
-            else ss
-
-  , hl   = \ _ ss _ -> ignore
-
-  , sr   = \ ((maybeA, aPos) , (b,bPos) , (maybeC,cPos))
-             ss
-             ((maybeD, dPos), (e,ePos) , (maybeF,fPos))
-         -> if pairs (b :: Nt) (e ::Nt)
-            then ss - 2 -- energyStem maybeA b maybeC maybeD e maybeF
-            else ignore
-
-  , closed_sr = \ (_, (a,aPos), _) ss (_, (b, bPos),_)
-              -> if pairs a b
-                 then ss - 1
-                 else 44444
-
--- unp :: TERMINAL MISMATCH
-  , unp  = \ ((maybeLeft, leftPos), (a, aPos)) ss ((b, bPos), (maybeRight, right))
-    -> if (not $ pairs a b) && (maybePairs maybeLeft maybeRight)
-       then ss - 0.5
-       else ignore
-
-  , h    =   SM.foldl' min (999998.00)
-  }
-{-# INLINE energyMin #-}
-
-maybePairs :: Maybe Nt -> Maybe Nt -> Bool
-maybePairs (Just a) (Just b) = pairs a b
-maybePairs _ _               = False
-
-checkHairpin :: MaybeNtPos -> NtPos -> NtPos -> MaybeNtPos -> Bool
-checkHairpin _ _ _ _ = False
-
-prettyStructCharShort :: Monad m => SigEnergyMin m
-  [String]
-  [[String]]
-  (MaybeNtPos, NtPos, MaybeNtPos)
-  NtPos
-  (MaybeNtPos, NtPos)
-  (NtPos, MaybeNtPos)
-prettyStructCharShort = SigEnergyMin
-  { nil = \ () ->  [""]
--- SSR :: Single Stranded Right
-  , ssr = \ [ss] (_, (a, aPos), _) ->  [ss ++ "SSR('" ++ [a] ++ "':" ++ show aPos ++ ") "]
--- SSL :: Single Stranded LEFT
-  , ssl = \  (_, (a, aPos), _) [ss]
-    -> ["SSL('" ++ [a] ++ "':" ++ show aPos ++") " ++ ss]
--- HPL :: Hairpin Loop
-  , hl = \((a, aPos), (b, bPos)) [ss] ((c, cPos),(d, dPos))
-    -> ["HPL('" ++ [a] ++ "':" ++ show aPos ++ ",'" ++ [d] ++ "':" ++ show dPos ++ ") " ++ ss ]
--- STEM :: Connected Region
-  , sr = \  (_, (b,bPos), _) [ss] (_, (e,ePos), _)
-    -> ["STEM(" ++ [b] ++ show bPos ++ ":" ++ [e] ++ show ePos ++ ")" ++ ss]
--- UNP :: Unpaired pairs || TODO :: needed with SSR ?
-  , unp = \ (_, (a,aPos)) [ss] ((b, bPos), _)
-    -> ["UNP('" ++  [a] ++ "':" ++ show aPos ++ ",'" ++ [b] ++ "':" ++ show bPos ++ ") " ++ ss ]
-
-  , closed_sr = \ _ [ss] _ -> ["closed " ++ ss]
-
-  , h   = SM.toList
-  }
-{-# INLINE prettyStructCharShort #-}
-
 energyMin :: Int -> String -> (Double,[[String]])
-energyMin k inp = (d, take k bs) where
+energyMin k inp = (z, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
-  n = VU.length i
-  !(Z:.t:.l) = runInsideForward i
-  d = unId $ axiom t
-  bs = runInsideBacktrack i (Z:.t:.l)
+  !(Z:.a:.b:.c:.d) = runInsideForward i
+  z = unId $ axiom a
+  bs = runInsideBacktrack i (Z:.a:.b:.c:.d)
 {-# NOINLINE energyMinAlg #-}
 
 type X = ITbl Id Unboxed Subword Double
-type Y = ITbl Id Unboxed Subword Double
+-- PK will ned subwords over subwords
 
 --runInsideForward :: VU.Vector Char -> Z:.X
 runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                    $ gEnergyMin energyMinAlg
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
+                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-166999.0) []))
+                        (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-266999.0) []))
+                        (ITbl 0 2 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-366999.0) []))
+                        (ITbl 0 3 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-466999.0) []))
                         (maybeLeftChrMaybeRight i)
-                        (chrMaybeLeft i)
-                        (chrMaybeRight i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: VU.Vector Char -> Z:.X:.Y -> [[String]]
-runInsideBacktrack i (Z:.t:.l) = unId $ axiom b
-  where !(Z:.b:.c) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
-                          (toBacktrack t (undefined :: Id a -> Id a))
-                          (toBacktrack l (undefined :: Id a -> Id a))
+runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X -> [[String]]
+runInsideBacktrack i (Z:.a:.b:.c:.d) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct
+  where !(Z:.g:.h:.j:.k) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
+                          (toBacktrack a (undefined :: Id a -> Id a))
+                          (toBacktrack b (undefined :: Id b -> Id b))
+                          (toBacktrack c (undefined :: Id c -> Id c))
+                          (toBacktrack d (undefined :: Id d -> Id d))
                           (maybeLeftChrMaybeRight i)
-                          (chrMaybeLeft i)
-                          (chrMaybeRight i)
 {-# NoInline runInsideBacktrack #-}
 
 pairs :: Char -> Char -> Bool
@@ -244,30 +229,6 @@ energyBulge a b = case b-a of
   2 -> 4
   3 -> 11
   _ -> -88888
--- | @Chr@ with its index.
--- This version exposes the index, where the character @x@ is located on the input vector.
-chrIx :: VG.Vector v x => v x -> Chr (x, Int)  x
-{-# Inline chrIx #-}
-chrIx xs = Chr f xs where
-  {-# Inline [0] f #-}
-  f xs k = (VG.unsafeIndex xs k, k)
-
-chrMaybeRight :: VG.Vector v x => v x -> Chr ((x,Int), (Maybe x,Int)) x
-{-# Inline chrMaybeRight #-}
-chrMaybeRight xs = Chr f xs where
-  {-# Inline [0] f #-}
-  f xs k = ( (VG.unsafeIndex xs k, k)
-           , (xs VG.!? (k+1), k+1)
-           )
-
-
-chrMaybeLeft :: VG.Vector v x => v x -> Chr ((Maybe x,Int), (x,Int)) x
-{-# Inline chrMaybeLeft #-}
-chrMaybeLeft xs = Chr f xs where
-  {-# Inline [0] f #-}
-  f xs k = ( (xs VG.!? (k-1), k-1)
-           , (VG.unsafeIndex xs k, k)
-           )
 
 maybeLeftChrMaybeRight :: VG.Vector v x => v x -> Chr ((Maybe x,Int), (x,Int), (Maybe x, Int)) x
 {-# Inline maybeLeftChrMaybeRight #-}
@@ -277,3 +238,40 @@ maybeLeftChrMaybeRight xs = Chr f xs where
            , (VG.unsafeIndex xs k, k)
            , (xs VG.!? (k+1), k+1)
            )
+
+{-
+choener
+Weak -> ( unpaired_region )
+Strong -> ( Weak )
+Strong -> ( Strong )
+Exterior -> Strong
+Exterior -> nt Strong nt
+Exterior -> Region String Region
+(((...)))[[[...]]]
+Open -> nt region nt
+xxx
+Hairpin:
+Open -> nt region nt
+Open -> nt region2 Closed region2 nt
+(.......)
+[...((???)).....]
+...
+Closed -> nt Closed nt
+Closed -> nt Open nt
+https://link.springer.com/article/10.1007/s00285-007-0107-5
+https://github.com/choener/ADPfusion/blob/master/ADPfusion/Core/Term/Str.hs
+http://hackage.haskell.org/package/ADPfusion-0.5.1.0/docs/src/ADP-Fusion-Term-Strng-Subword.html
+Region -> nt
+Region -> nt Region
+<<<>>>
+-}
+
+{-
+Insights from the Bompfwürnerwer Paper
+
+- From the biophysical point of view one distinguishes hairpin loops, stackedbase pairs, bulges, true interior loops, and multi(branched) loops.
+- From an algorithmicpoint of view one can treat bulges, stacked pairs, and true interior loops as _subtypes_ ofinterior loops.
+
+
+
+-}
