@@ -55,6 +55,7 @@ Emit: PKN
 
 makeAlgebraProduct ''SigPKN
 
+-- | Evaluation algebra
 bpmax :: Monad m => SigPKN m Int Int Char
 bpmax = SigPKN
   { unp = \ x c     -> x
@@ -84,6 +85,7 @@ pairs !c !d
 -- or something isomorphic. While [String] works, it allows for too many
 -- possibilities here! ([] ist lightweight, on the other hand ...)
 
+-- Evaluation Algebra
 pretty :: Monad m => SigPKN m [String] [[String]] Char
 pretty = SigPKN
   { unp = \ [x] c     -> [x ++ "-"]
@@ -110,7 +112,6 @@ pretty = SigPKN
 pknPairMax :: Int -> String -> (Int,[[String]])
 pknPairMax k inp = (d, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
-  n = VU.length i
   !(Z:.t:.u:.v) = runInsideForward i
   d = unId $ axiom t
   bs = runInsideBacktrack i (Z:.t:.u:.v)
@@ -137,4 +138,3 @@ runInsideBacktrack i (Z:.t:.u:.v) = unId $ axiom b
                           (toBacktrack v (undefined :: Id a -> Id a))
                           (chr i)
 {-# NoInline runInsideBacktrack #-}
-

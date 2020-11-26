@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiWayIf #-}
+
 module BioInf.GenussFold.SimpleEnergyStackedHairpinLoops where
 
 import           Control.Applicative
@@ -22,8 +23,6 @@ import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage
 
 -- | Define signature and grammar
-{-  Next Nonterminals
--}
 [formalLanguage|
 Verbose
 
@@ -72,20 +71,27 @@ energyMinAlg :: Monad m => SigEnergyMin m Double Double (MaybeNtPos, NtPos, Mayb
 energyMinAlg = SigEnergyMin
   { nil  = \ () -> 0.00
   , unpaired = \ _ ss -> ss
-  , paired = \ (_,(a,aPos),_) x (_, (b,bPos), _) y -> if pairs a b
-                                                      then x + y - 1
-                                                      else ignore
-  , hairpin = \ (_,(a,aPos),_) ss (_,(b,bPos),_)  -> if pairs a b then ss - 1 else ignore
-  , interior = \ _ (_,(a,aPos),_) ss (_,(b,bPos),_) _ -> if pairs a b
-                                                         then ss - 1
-                                                         else ignore
-  , mlr = \ (_,(a,aPos),_) m (_,(b,bPos),_) (_,(c,cPos),_) m1 (_,(d,dPos),_) -> if
-       | pairs a b && pairs c d -> m + m1
-       | pairs a b -> m
-       | pairs c d -> m1
-       | otherwise -> ignore
+
+  , paired   = \ (_,(a,aPos),_) x (_, (b,bPos), _) y -> if
+             | pairs a b ->  x + y - 1
+             | otherwise -> ignore
+
+  , hairpin  = \ (_,(a,aPos),_) ss (_,(b,bPos),_)  -> if
+             | pairs a b -> ss - 1
+             | otherwise -> ignore
+
+  , interior = \ _ (_,(a,aPos),_) ss (_,(b,bPos),_) _ -> if
+             | pairs a b -> ss - 1
+             | otherwise -> ignore
+
+  , mlr      = \ (_,(a,aPos),_) m (_,(b,bPos),_) (_,(c,cPos),_) m1 (_,(d,dPos),_) -> if
+             | pairs a b && pairs c d -> m + m1
+             | pairs a b -> m
+             | pairs c d -> m1
+             | otherwise -> ignore
+
   , mcm_1 = \ region (_,(a,aPos),_) closed (_,(b,bPos),_) -> if pairs a b then closed else ignore
-  , mcm_2 = \ (_,(a,aPos),_) m (_,(b,bPos),_) (_,(c,cPos),_) closed (_,(d,dPos),_) -> ignore -- Multi Component Multiloop Case 3 :: mcm_3 <<< M nt
+  , mcm_2 = \ (_,(a,aPos),_) m (_,(b,bPos),_) (_,(c,cPos),_) closed (_,(d,dPos),_) -> ignore
   , mcm_3 = \ (_,(a,aPos),_) m (_,(b,bPos),_) region -> if pairs a b then m + region else region
   , ocm_1 = \ (_,(a,aPos),_) m1 (_,(b,bPos),_) region -> if pairs a b then m1 + region else region
   , ocm_2 = \ (_,(a,aPos),_) closed (_,(b,bPos),_) -> if pairs a b then closed else ignore
@@ -133,7 +139,7 @@ energyMin k inp = (z, take k bs) where
 {-# NOINLINE energyMinAlg #-}
 
 type X = ITbl Id Unboxed Subword Double
--- PK will ned subwords over subwords
+-- PK will need subwords over subwords
 
 --runInsideForward :: VU.Vector Char -> Z:.X
 runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)

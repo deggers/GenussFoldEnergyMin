@@ -46,7 +46,7 @@ library
   build-depends: base                   >= 4.7      && < 4.9
                , ADPfusion              >= 0.4.1.1  && < 0.4.2
                , ansi-wl-pprint         >= 0.6.7    && < 0.6.8
---               , BiobaseTurner          >= 0.3.2    && < 0.3.3
+--               , Biobase                >= 0.1.0    && < 0.3.0
 --               , BiobaseTypes           >= 0.1.1    && < 0.1.2
                , bytestring             >= 0.10     && < 0.11
                , containers
@@ -141,4 +141,3 @@ test-suite properties-fast
 source-repository head
   type: git
   location: git://github.com/choener/GenussFold
-
