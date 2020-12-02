@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiWayIf #-}
 
-module BioInf.GenussFold.SimpleEnergyStackedHairpinLoops where
+module BioInf.GenussFold.ViennaRNA where
 
 import           Control.Applicative
 import           Control.Monad
