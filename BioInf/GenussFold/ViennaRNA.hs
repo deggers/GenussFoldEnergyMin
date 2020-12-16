@@ -47,7 +47,7 @@ b_Closed -> interior <<< nt c_Region nt b_Closed nt c_Region nt
 b_Closed -> mlr      <<< nt e_M f_M1 nt
 b_Closed -> nil      <<< e
 
-e_M -> mcm_1         <<< c_Region nt b_Closed nt
+e_M -> mcm_1         <<< c_Region b_Closed
 e_M -> mcm_2         <<< e_M nt b_Closed nt
 e_M -> mcm_3         <<< e_M nt
 e_M -> nil           <<< e
@@ -101,7 +101,7 @@ energyMinAlg = SigEnergyMin
              | pairs i j -> m + m1 -1
              | otherwise   -> ignore
 
-  , mcm_1 = \ region (_,(a,aPos),_) closed (_,(b,bPos),_) -> if pairs a b then closed -1 else ignore
+  , mcm_1 = \ region closed -> region + closed
 
   , mcm_2 = \  m (_,(a,cPos),_) closed (_,(b,dPos),_) -> if
           | pairs a b -> m + closed -1
@@ -120,16 +120,16 @@ prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] (MaybeNtP
 prettyStructCharShort = SigEnergyMin
   { nil = \ () ->  [""]
   , unpaired = \ (_, (a, aPos), _) [ss] -> ["." ++ ss]
-  , paired = \ (_,(a,aPos),_) [x] (_,(b,bPos),_) [y] -> ["(-" ++ x ++ "-)" ++ y]
-  , hairpin = \  _ [region] _  -> ["(h" ++ region ++"h)"]
-  , interior = \ _ [x] _ [closed] _ [y] _ -> ["(" ++ concatMap (\_ -> ".") x ++ "(" ++ closed ++ ")" ++ concatMap (\_ -> ".") y ++")"]
-  , mlr = \ _ [m] [m1] _ -> ["(m" ++ m ++ m1 ++ "m)"]
-  , mcm_1 = \ [region] _ [closed] _ -> [ concatMap(\_ -> ".") region ++ "(" ++ closed ++ ")"]
+  , paired = \ (_,(a,aPos),_) [x] (_,(b,bPos),_) [y] -> ["(" ++ x ++ ")" ++ y]
+  , hairpin = \  _ [region] _  -> ["(" ++ region ++")"]
+  , interior = \ _ [x] _ [closed] _ [y] _ -> ["(" ++  x ++ "(" ++ closed ++ ")" ++  y ++")"]
+  , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
+  , mcm_1 = \ [region] [closed] -> [ region ++ closed ]
   , mcm_2 = \ [m] _ [closed] _ -> [m ++ "(" ++ closed ++ ")"]
   , mcm_3 = \ [m] _ -> [m ++ "."]
   , ocm_1 = \ [m1] _ -> [m1 ++ "."]
-  , ocm_2 = \ _ [x] _ -> ["(o" ++ x ++ "o)"]
-  , region = \ (_,(a,aPos),_) [ss] -> ["." ++ ss]
+  , ocm_2 = \ _ [x] _ -> ["(" ++ x ++ ")"]
+  , region = \ _ [ss] -> ["." ++ ss]
   , region3 = \ _ _ _ [ss] -> ["..." ++ ss]
   , h   = SM.toList
   }
