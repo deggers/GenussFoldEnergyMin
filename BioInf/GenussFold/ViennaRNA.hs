@@ -22,6 +22,8 @@ import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage
 
+import           BioInf.GenussFold.IndexToIndexParser
+
 -- | Define signature and grammar
 [formalLanguage|
 Verbose
@@ -35,26 +37,24 @@ N: e_M
 N: f_M1
 
 T: nt
+T: regionCtx
 
 S: a_Struct
 
 a_Struct -> unpaired <<< nt a_Struct
-a_Struct -> paired   <<< nt b_Closed nt a_Struct
+a_Struct -> juxtaposed   <<< b_Closed a_Struct
 a_Struct -> nil      <<< e
 
 b_Closed -> hairpin  <<< nt d_Region3 nt
-b_Closed -> interior <<< nt c_Region nt b_Closed nt c_Region nt
+b_Closed -> interior <<< nt regionCtx b_Closed regionCtx nt
 b_Closed -> mlr      <<< nt e_M f_M1 nt
-b_Closed -> nil      <<< e
 
 e_M -> mcm_1         <<< c_Region b_Closed
 e_M -> mcm_2         <<< e_M nt b_Closed nt
 e_M -> mcm_3         <<< e_M nt
-e_M -> nil           <<< e
 
 f_M1 -> ocm_1        <<< f_M1 nt
 f_M1 -> ocm_2        <<< nt b_Closed nt
-f_M1 -> nil          <<< e
 
 c_Region -> region   <<< nt c_Region
 c_Region -> nil      <<< e
@@ -80,21 +80,18 @@ energyPaired ('A','U') = -1
 energyPaired _ = -1
 
 
-energyMinAlg :: Monad m => SigEnergyMin m Double Double (MaybeNtPos, NtPos, MaybeNtPos)
+energyMinAlg :: Monad m => SigEnergyMin m Double Double (MaybeNtPos, NtPos, MaybeNtPos) ((Char,Int),(Char,Int))
 energyMinAlg = SigEnergyMin
   { nil  = \ () -> 0.00
   , unpaired = \ _ ss -> ss
 
-  , paired   = \ (_,(a,aPos),_) x (_, (b,bPos), _) y -> if
-             | pairs a b ->  x + y - 1
-             | otherwise -> ignore
-
+  , juxtaposed   = \ x y -> x + y
   , hairpin  = \ (_,(a,aPos),_) ss (_,(b,bPos),_)  -> if
              | pairs a b -> ss - 1
              | otherwise -> ignore
 
-  , interior = \ (_,(i,iPos),_) _ (_,(k,kPos),_) closed (_,(l,lPos),_) _ (_,(j,jPos),_) -> if
-             | pairs i j && pairs k l -> closed - 2
+  , interior = \ (_,(i,iPos),_) (_,(k,kPos)) closed ((l,lPos),_) (_,(j,jPos),_) -> if
+             | pairs i j && pairs k l -> closed - 2   -- calculate energy with InteriorLoop iPos jPos kPos lPos
              | otherwise -> ignore
 
   , mlr      = \ (_,(i,iPos),_) m m1 (_,(j,jPos),_) -> if
@@ -116,11 +113,11 @@ energyMinAlg = SigEnergyMin
   }
 {-# INLINE energyMin #-}
 
-prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] (MaybeNtPos, NtPos, MaybeNtPos)
+prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] (MaybeNtPos, NtPos, MaybeNtPos) (Int,Int)
 prettyStructCharShort = SigEnergyMin
   { nil = \ () ->  [""]
-  , unpaired = \ (_, (a, aPos), _) [ss] -> ["." ++ ss]
-  , paired = \ (_,(a,aPos),_) [x] (_,(b,bPos),_) [y] -> ["(" ++ x ++ ")" ++ y]
+  , unpaired = \ (_, (a, aPos), _) [ss] -> ["u" ++ ss]
+  , paired = \ [x] [y] -> [x ++ y]
   , hairpin = \  _ [region] _  -> ["(" ++ region ++")"]
   , interior = \ _ [x] _ [closed] _ [y] _ -> ["(" ++  x ++ "(" ++ closed ++ ")" ++  y ++")"]
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
@@ -142,7 +139,7 @@ energyMin :: Int -> String -> (Double,[[String]])
 energyMin k inp = (z, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
   !(Z:.a:.b:.c:.d:.e:.f) = runInsideForward i
-  z = unId $ axiom a
+  z = unId $ axiom a -- gets the value from the table
   bs = runInsideBacktrack i (Z:.a:.b:.c:.d:.e:.f)
 {-# NOINLINE energyMinAlg #-}
 
@@ -152,13 +149,14 @@ type X = ITbl Id Unboxed Subword Double
 --runInsideForward :: VU.Vector Char -> Z:.X
 runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                    $ gEnergyMin energyMinAlg
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-166999.0) []))
-                        (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-266999.0) []))
-                        (ITbl 0 2 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-366999.0) []))
-                        (ITbl 0 3 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-466999.0) []))
-                        (ITbl 0 4 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-566999.0) []))
-                        (ITbl 0 5 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999.0) []))
+                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (166999.0) []))
+                        (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (266999.0) []))
+                        (ITbl 0 2 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (366999.0) []))
+                        (ITbl 0 3 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (466999.0) []))
+                        (ITbl 0 4 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (566999.0) []))
+                        (ITbl 0 5 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (666999.0) []))
                         (maybeLeftChrMaybeRight i)
+                        (strIndexTerm i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
@@ -172,6 +170,7 @@ runInsideBacktrack i (Z:.a:.b:.c:.d:.e:.f) = unId $ axiom g -- Axiom from the St
                           (toBacktrack e (undefined :: Id e -> Id e))
                           (toBacktrack f (undefined :: Id f -> Id f))
                           (maybeLeftChrMaybeRight i)
+                          (strIndexTerm i)
 {-# NoInline runInsideBacktrack #-}
 
 pairs :: Char -> Char -> Bool
@@ -248,6 +247,8 @@ maybeLeftChrMaybeRight xs = Chr f xs where
            , (VG.unsafeIndex xs k, k)
            , (xs VG.!? (k+1), k+1)
            )
+
+myRegionparser :: ....... -- TODO
 
 {-
 choener
