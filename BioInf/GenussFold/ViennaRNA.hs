@@ -114,7 +114,7 @@ energyMinAlg = SigEnergyMin
   , region3 = \ _ _ _ ss -> ss
   , h    =   SM.foldl' min (ignore)
   }
-{-# INLINE energyMin #-}
+{-# INLINE viennaRNA #-}
 
 prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] (MaybeNtPos, NtPos, MaybeNtPos)
 prettyStructCharShort = SigEnergyMin
@@ -138,8 +138,8 @@ prettyStructCharShort = SigEnergyMin
 openPenalty = 4.09
 ignore      = 9999999.00
 
-energyMin :: Int -> String -> (Double,[[String]])
-energyMin k inp = (z, take k bs) where
+viennaRNA :: Int -> String -> (Double,[[String]])
+viennaRNA k inp = (z, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
   !(Z:.a:.b:.c:.d:.e:.f) = runInsideForward i
   z = unId $ axiom a
