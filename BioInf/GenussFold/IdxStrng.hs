@@ -4,6 +4,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module BioInf.GenussFold.IdxStrng where
 
@@ -18,16 +21,16 @@ import           ADP.Fusion.Base
 --
 -- NOTE gadt comments are not parsed by haddock?
 
+-- (Char,Int)   RegionIndexParser ((Char,Int),(Char,Int))
 data IdxStrng v x where
-  Strng :: VG.Vector v x
-        => (Int -> Int -> v x -> v x)  -- @slice@ function
-        -> Int                         -- minimal size
+ IdxStrng :: VG.Vector v x
+        => Int                         -- minimal size
         -> Int                         -- maximal size (just use s.th. big if you don't want a limit)
         -> (v x)                       -- the actual vector
         -> IdxStrng v x
 
 idxStrng :: VG.Vector v x => Int -> Int -> v x -> IdxStrng v x
-idxStrng = \minL maxL xs -> Strng VG.unsafeSlice minL maxL xs
+idxStrng = \minL maxL xs -> IdxStrng (max minL 1) maxL xs -- only accepts Strings with length at least 1
 {-# Inline idxStrng #-}
 
 instance Build (IdxStrng v x)
@@ -35,15 +38,15 @@ instance Build (IdxStrng v x)
 instance
   ( Element ls i
   ) => Element (ls :!: IdxStrng v x) i where
-  data Elm (ls :!: IdxStrng v x) i = ElmStrng !(v x) !i !i !(Elm ls i)
-  type Arg (ls :!: IdxStrng v x)   = Arg ls :. v x
-  getArg (ElmStrng x _ _ ls) = getArg ls :. x
-  getIdx (ElmStrng _ i _ _ ) = i
-  getOmx (ElmStrng _ _ o _ ) = o
+  data Elm (ls :!: IdxStrng v x) i = ElmStrng !x !Int !x !Int !i !i !(Elm ls i) -- type functions
+  type Arg (ls :!: IdxStrng v x)   = Arg ls :. ((x, Int), (x, Int))
+  getArg (ElmStrng x i y j _ _ ls) = getArg ls :. ((x, i), (y, j))
+  getIdx (ElmStrng _ _ _ _ i _ _ ) = i
+  getOmx (ElmStrng _ _ _ _ _ o _ ) = o -- outside structuren
   {-# Inline getArg #-}
   {-# Inline getIdx #-}
   {-# Inline getOmx #-}
 
-deriving instance (Show i, Show (v x), Show (Elm ls i)) => Show (Elm (ls :!: IdxStrng v x) i)
+deriving instance (Show i, Show x, Show (Elm ls i)) => Show (Elm (ls :!: IdxStrng v x) i)
 
 type instance TermArg (TermSymbol a (IdxStrng v x)) = TermArg a :. v x

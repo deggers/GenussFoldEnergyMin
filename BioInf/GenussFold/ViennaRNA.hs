@@ -23,6 +23,7 @@ import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage
 
 import           BioInf.GenussFold.IndexToIndexParser
+import           BioInf.GenussFold.IdxStrng
 
 -- | Define signature and grammar
 [formalLanguage|
@@ -46,7 +47,7 @@ a_Struct -> juxtaposed   <<< b_Closed a_Struct
 a_Struct -> nil      <<< e
 
 b_Closed -> hairpin  <<< nt d_Region3 nt
-b_Closed -> interior <<< nt regionCtx b_Closed regionCtx nt
+b_Closed -> interior <<< regionCtx b_Closed regionCtx
 b_Closed -> mlr      <<< nt e_M f_M1 nt
 
 e_M -> mcm_1         <<< c_Region b_Closed
@@ -73,6 +74,8 @@ type MaybeNtPos = (Maybe Nt, Pos)
 type Basepair = (Nt, Nt)
 type Energy = Double
 
+type IndexRegionParser = (NtPos,NtPos)
+
 makeAlgebraProduct ''SigEnergyMin
 
 energyPaired ::  Basepair -> Double
@@ -80,7 +83,7 @@ energyPaired ('A','U') = -1
 energyPaired _ = -1
 
 
-energyMinAlg :: Monad m => SigEnergyMin m Double Double (MaybeNtPos, NtPos, MaybeNtPos) ((Char,Int),(Char,Int))
+energyMinAlg :: Monad m => SigEnergyMin m Double Double (MaybeNtPos, NtPos, MaybeNtPos) (NtPos, NtPos)
 energyMinAlg = SigEnergyMin
   { nil  = \ () -> 0.00
   , unpaired = \ _ ss -> ss
@@ -90,8 +93,9 @@ energyMinAlg = SigEnergyMin
              | pairs a b -> ss - 1
              | otherwise -> ignore
 
-  , interior = \ (_,(i,iPos),_) (_,(k,kPos)) closed ((l,lPos),_) (_,(j,jPos),_) -> if
-             | pairs i j && pairs k l -> closed - 2   -- calculate energy with InteriorLoop iPos jPos kPos lPos
+-- b_Closed -> interior <<< nt regionCtx b_Closed regionCtx nt
+  , interior = \ ((a,aPos),(_,bPos)) closed ((_,cPos),(d,dPos)) -> if
+             | pairs a d -> closed - 2   -- calculate energy with InteriorLoop aPos bPos cPos dPos
              | otherwise -> ignore
 
   , mlr      = \ (_,(i,iPos),_) m m1 (_,(j,jPos),_) -> if
@@ -113,13 +117,13 @@ energyMinAlg = SigEnergyMin
   }
 {-# INLINE energyMin #-}
 
-prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] (MaybeNtPos, NtPos, MaybeNtPos) (Int,Int)
+prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] (MaybeNtPos, NtPos, MaybeNtPos) (NtPos,NtPos)
 prettyStructCharShort = SigEnergyMin
   { nil = \ () ->  [""]
   , unpaired = \ (_, (a, aPos), _) [ss] -> ["u" ++ ss]
-  , paired = \ [x] [y] -> [x ++ y]
+  , juxtaposed = \ [x] [y] -> [x ++ y]
   , hairpin = \  _ [region] _  -> ["(" ++ region ++")"]
-  , interior = \ _ [x] _ [closed] _ [y] _ -> ["(" ++  x ++ "(" ++ closed ++ ")" ++  y ++")"]
+  , interior = \ ((aChar,aPos),(bChar,bPos)) [closed] ((cChar,cPos),(dChar,dPos)) -> ["(" ++ replicate (bPos-(aPos)) '.' ++ "(" ++ closed ++ ")" ++  replicate (dPos-cPos) '.' ++")"]
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
   , mcm_1 = \ [region] [closed] -> [ region ++ closed ]
   , mcm_2 = \ [m] _ [closed] _ -> [m ++ "(" ++ closed ++ ")"]
@@ -156,11 +160,11 @@ runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                         (ITbl 0 4 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (566999.0) []))
                         (ITbl 0 5 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (666999.0) []))
                         (maybeLeftChrMaybeRight i)
-                        (strIndexTerm i)
+                        (idxStrng 1 30 i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X:.X:.X -> [[String]]
+runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X:.X:.X -> [[String]] -- for the non-terminals
 runInsideBacktrack i (Z:.a:.b:.c:.d:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct
   where !(Z:.g:.h:.j:.k:.l:.m) = gEnergyMin (energyMinAlg <|| prettyStructCharShort)
                           (toBacktrack a (undefined :: Id a -> Id a))
@@ -170,7 +174,7 @@ runInsideBacktrack i (Z:.a:.b:.c:.d:.e:.f) = unId $ axiom g -- Axiom from the St
                           (toBacktrack e (undefined :: Id e -> Id e))
                           (toBacktrack f (undefined :: Id f -> Id f))
                           (maybeLeftChrMaybeRight i)
-                          (strIndexTerm i)
+                          (idxStrng 1 30 i)
 {-# NoInline runInsideBacktrack #-}
 
 pairs :: Char -> Char -> Bool
@@ -247,42 +251,3 @@ maybeLeftChrMaybeRight xs = Chr f xs where
            , (VG.unsafeIndex xs k, k)
            , (xs VG.!? (k+1), k+1)
            )
-
-myRegionparser :: ....... -- TODO
-
-{-
-choener
-Weak -> ( unpaired_region )
-Strong -> ( Weak )
-Strong -> ( Strong )
-Exterior -> Strong
-Exterior -> nt Strong nt
-Exterior -> Region String Region
-(((...)))[[[...]]]
-Open -> nt region nt
-xxx
-Hairpin:
-Open -> nt region nt
-Open -> nt region2 Closed region2 nt
-(.......)
-[...((???)).....]
-...
-Closed -> nt Closed nt
-Closed -> nt Open nt
-https://link.springer.com/article/10.1007/s00285-007-0107-5
-https://github.com/choener/ADPfusion/blob/master/ADPfusion/Core/Term/Str.hs
-http://hackage.haskell.org/package/ADPfusion-0.5.1.0/docs/src/ADP-Fusion-Term-Strng-Subword.html
-Region -> nt
-Region -> nt Region
-<<<>>>
--}
-
-{-
-Insights from the Bompfwürnerwer Paper
-
-- From the biophysical point of view one distinguishes hairpin loops, stackedbase pairs, bulges, true interior loops, and multi(branched) loops.
-- From an algorithmicpoint of view one can treat bulges, stacked pairs, and true interior loops as _subtypes_ ofinterior loops.
-
-
-
--}

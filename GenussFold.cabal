@@ -61,6 +61,7 @@ library
                , transformers           >= 0.3      && < 0.5
                , unordered-containers   >= 0.2      && < 0.3
                , vector                 >= 0.10     && < 0.11
+               , strict                 == 0.4.0.1
   exposed-modules:
     BioInf.GenussFold
     BioInf.GenussFold.PKN
@@ -77,6 +78,7 @@ library
                     , TemplateHaskell
                     , TypeFamilies
                     , TypeOperators
+                    , FlexibleInstances
   ghc-options:
     -O2
     -funbox-strict-fields
