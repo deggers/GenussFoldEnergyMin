@@ -1,4 +1,9 @@
 -- |
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module BioInf.GenussFold.IndexToIndexParser where
 
@@ -22,26 +27,30 @@ instance
   ( Monad m
   , Element ls Subword
   , MkStream m ls Subword
-  ) => MkStream m (ls :!: Strng v x) Subword where
-  mkStream (ls :!: Strng slice mn mx v) (IStatic ()) hh (Subword (i:.j))
+  ) => MkStream m (ls :!: IdxStrng v x) Subword where
+  mkStream (ls :!: IdxStrng mn mx v) (IStatic ()) hh (Subword (i:.j))
     = S.filter (\s -> let Subword (k:.l) = getIdx s in l-k <= mx)
     . S.map (\s -> let (Subword (_:.l)) = getIdx s
-                   in  ElmStrng (slice l (j-l) v) (subword l j) (subword 0 0) s)
+                       lChar = v VG.! l  -- Char left -- later to be optimized with VG.unsafeINdex
+                       jChar = v VG.! (j-1)  -- Char right
+                   in  ElmStrng lChar l jChar (j-1) (subword l j) (subword 0 0) s)
     $ mkStream ls (IVariable ()) hh (delay_inline Subword (i:.j - mn))
-  mkStream (ls :!: Strng slice mn mx v) (IVariable ()) hh (Subword (i:.j))
+  mkStream (ls :!: IdxStrng mn mx v) (IVariable ()) hh (Subword (i:.j))
     = S.flatten mk step Unknown $ mkStream ls (IVariable ()) hh (delay_inline Subword (i:.j - mn))
     where mk s = let Subword (_:.l) = getIdx s in return (s :. j - l - mn)
           step (s:.z) | z >= 0 = do let Subword (_:.k) = getIdx s
                                         l              = j - z
-                                        kl             = subword k l
-                                    return $ S.Yield (ElmStrng (slice k (l-k) v) kl (subword 0 0) s) (s:.z-1)
+                                        kl             = subword k l -- subword auf dem der parser gerade ist
+                                        kChar          = v VG.! k
+                                        lChar          = v VG.! (l-1)
+                                    return $ S.Yield (ElmStrng kChar k lChar (l-1) kl (subword 0 0) s) (s:.z-1)
                       | otherwise = return $ S.Done
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
   {-# Inline mkStream #-}
 
 -- makes this a comment :: ->
-
+{-
 instance
   ( TermStreamContext m ps ts s x0 i0 is (Subword I) -- @TODO is,Int ?
 --  ( TermStreamContext m ps ts s x0 i0 is (Subword I)
@@ -63,3 +72,4 @@ instance
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
   {-# Inline termStream #-}
+-}
