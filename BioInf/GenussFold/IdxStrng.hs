@@ -21,7 +21,8 @@ import           ADP.Fusion.Base
 --
 -- NOTE gadt comments are not parsed by haddock?
 
--- (Char,Int)   RegionIndexParser ((Char,Int),(Char,Int))
+--  Returns pair of indices, where first pair is withing region and second is outside of region
+-- if indices are the same, its an empty region beginning from first pair
 data IdxStrng v x where
  IdxStrng :: VG.Vector v x
         => Int                         -- minimal size
@@ -30,19 +31,23 @@ data IdxStrng v x where
         -> IdxStrng v x
 
 idxStrng :: VG.Vector v x => Int -> Int -> v x -> IdxStrng v x
-idxStrng = \minL maxL xs -> IdxStrng (max minL 1) maxL xs -- only accepts Strings with length at least 1
+idxStrng = \minL maxL xs -> IdxStrng (max minL 0) maxL xs
 {-# Inline idxStrng #-}
+
+idxStrng1 :: VG.Vector v x => Int -> Int -> v x -> IdxStrng v x
+idxStrng1 = \minL maxL xs -> IdxStrng (max minL 1) maxL xs
+{-# Inline idxStrng1 #-}
 
 instance Build (IdxStrng v x)
 
 instance
   ( Element ls i
   ) => Element (ls :!: IdxStrng v x) i where
-  data Elm (ls :!: IdxStrng v x) i = ElmStrng !x !Int !x !Int !i !i !(Elm ls i) -- type functions
-  type Arg (ls :!: IdxStrng v x)   = Arg ls :. ((x, Int), (x, Int))
-  getArg (ElmStrng x i y j _ _ ls) = getArg ls :. ((x, i), (y, j))
-  getIdx (ElmStrng _ _ _ _ i _ _ ) = i
-  getOmx (ElmStrng _ _ _ _ _ o _ ) = o -- outside structuren
+  data Elm (ls :!: IdxStrng v x) i = ElmStrng !Int !Int !i !i !(Elm ls i) -- type functions
+  type Arg (ls :!: IdxStrng v x)   = Arg ls :. (Int,Int)
+  getArg (ElmStrng i j _ _ ls) = getArg ls :. (i, j)
+  getIdx (ElmStrng _ _ i _ _ ) = i
+  getOmx (ElmStrng _ _ _ o _ ) = o -- outside structuren
   {-# Inline getArg #-}
   {-# Inline getIdx #-}
   {-# Inline getOmx #-}
