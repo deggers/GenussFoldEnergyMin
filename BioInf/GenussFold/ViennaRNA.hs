@@ -102,7 +102,7 @@ energyMinAlg input = SigEnergyMin
 
   , juxtaposed   = \ x y -> x + y
   , hairpin  = \ (left, subtract 1 -> right) -> if
-             | pairs (input VU.! left) (input VU.! right) -> fromIntegral (5 + right-left)
+             |  (right-left) > 3 && pairs (input VU.! left) (input VU.! right) -> fromIntegral (5 + right-left)
              | otherwise -> ignore
 
 -- b_Closed -> interior <<< regionCtx b_Closed regionCtx
