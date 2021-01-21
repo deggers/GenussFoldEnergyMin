@@ -34,7 +34,6 @@ Grammar: EnergyMin
 N: a_Struct
 N: b_Closed
 N: c_Region
-N: d_Region3
 N: e_M
 N: f_M1
 
@@ -107,7 +106,7 @@ energyMinAlg input = SigEnergyMin
 
   , juxtaposed   = \ x y -> x + y
   , hairpin  = \ (left, subtract 1 -> right) -> if
-             | pairs (input VU.! left) (input VU.! right) -> 5.0
+             | pairs (input VU.! left) (input VU.! right) -> fromIntegral (5 + right-left)
              | otherwise -> ignore
 
 -- b_Closed -> interior <<< regionCtx b_Closed regionCtx
