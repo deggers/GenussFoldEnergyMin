@@ -60,10 +60,7 @@ d_M1 -> ocm_2            <<< nt b_Closed nt
 Emit: EnergyMin
 |]
 
---  b_Closed -> interior <<< nt c_Region nt b_Closed nt c_Region nt
-  -- Idea is we can have nt . . . maybeNt someClosedStruct maybeNt ... nt
-
--- hairpin -> regionCtx 5 ... 32  3 empty 2 paired
+-- @TODO  hairpin -> regionCtx 5 ... 32  3 empty 2 paired to ensure only semtical correct parses
 
 -- Use domain-specific language
 type Pos = Int
@@ -72,10 +69,8 @@ type NtPos = (Nt, Pos)
 type MaybeNtPos = (Maybe Nt, Pos)
 type Basepair = (Nt, Nt)
 type Energy = Double
-
 type IndexRegionParser = (Pos,Pos)
 ignore      = 100123.00
-
 makeAlgebraProduct ''SigEnergyMin
 
 interiorLoopEnergy ::  Basepair -> Basepair -> Double
@@ -98,7 +93,7 @@ interiorLoopEnergy _ _ = -1
 energyMinAlg :: Monad m => VU.Vector Char ->  SigEnergyMin m Double Double NtPos (Pos,Pos)
 energyMinAlg input = SigEnergyMin
   { nil  = \ () -> 0.00
-  , unpaired = \ _ ss -> ss + 10.00
+  , unpaired = \ _ ss -> ss + 1.00
 
   , juxtaposed   = \ x y -> x + y
   , hairpin  = \ (left, subtract 1 -> right) -> if
@@ -116,7 +111,7 @@ energyMinAlg input = SigEnergyMin
 
   , mcm_1 = \ _ closed -> closed
 
-  , mcm_2 = \  m (a,cPos) closed (b,dPos) -> if
+  , mcm_2 = \  m (a,aPos) closed (b,bPos) -> if
           | pairs a b -> m + closed + 4.5
           | otherwise ->  ignore
 
@@ -130,9 +125,9 @@ energyMinAlg input = SigEnergyMin
 prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
 prettyStructCharShort = SigEnergyMin
   { nil = \ () ->  [""]
-  , unpaired = \ (a, aPos) [ss] -> ["u" ++ ss]
+  , unpaired = \ _ [ss] -> ["u" ++ ss]
   , juxtaposed = \ [x] [y] -> [x ++ y]
-  , hairpin = \  hairpin  -> ["(. . .)"]
+  , hairpin = \  _  -> ["(. . .)"]
   , interior = \ regionL [closed] regionR -> ["(" ++ show regionL ++ "(" ++ closed ++ ")" ++ show regionR ++ ")" ]
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
   , mcm_1 = \ region [closed] -> [ show region ++ closed ]
