@@ -31,7 +31,7 @@ instance
   mkStream (ls :!: IdxStrng mn mx v) (IStatic ()) hh (Subword (i:.j))
     = S.filter (\s -> let Subword (k:.l) = getIdx s in l-k <= mx)
     . S.map (\s -> let (Subword (_:.l)) = getIdx s
-                   in  ElmStrng l (j-1) (subword l j) (subword 0 0) s)
+                   in  ElmStrng l j (subword l j) (subword 0 0) s)
     $ mkStream ls (IVariable ()) hh (delay_inline Subword (i:.j - mn))
   mkStream (ls :!: IdxStrng mn mx v) (IVariable ()) hh (Subword (i:.j))
     = S.flatten mk step Unknown $ mkStream ls (IVariable ()) hh (delay_inline Subword (i:.j - mn))

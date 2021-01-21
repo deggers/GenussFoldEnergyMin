@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module BioInf.GenussFold.ViennaRNA where
 
@@ -69,6 +70,8 @@ Emit: EnergyMin
 --  b_Closed -> interior <<< nt c_Region nt b_Closed nt c_Region nt
   -- Idea is we can have nt . . . maybeNt someClosedStruct maybeNt ... nt
 
+-- hairpin -> regionCtx 5 ... 32  3 empty 2 paired
+
 -- Use domain-specific language
 type Pos = Int
 type Nt = Char
@@ -110,8 +113,8 @@ energyMinAlg input = SigEnergyMin
              | otherwise -> ignore
 
 -- b_Closed -> interior <<< regionCtx b_Closed regionCtx
-  , interior = \ (aPos,bPos) closed  (cPos,dPos) -> if   -- i VU.! a/b/c/d
-             | pairs (input VU.! aPos) (input VU.! dPos) && pairs (input VU.! bPos) (input VU.! cPos) -> closed - 1 -- + interiorLoopEnergy (a,d) (b,c) -- + fromIntegral (bPos-aPos-1) + fromIntegral (dPos-cPos-1)  -- calculate energy with InteriorLoop a d b c
+  , interior = \ (aPos,bPos) closed (subtract 1 -> cPos, subtract 1 -> dPos) -> if   -- i VU.! a/b/c/d
+             | pairs (input VU.! aPos) (input VU.! dPos) && pairs (input VU.! bPos) (input VU.! cPos) -> closed - 1 -- + interiorLoopEnergy (a,d) (b,c) -- + fromIntegral (bPos-aPos-1) + fromIntegral (dPos-cPos-1)  -- calculate energy with InteriorLoop a d b c 0
              | otherwise -> ignore
 
   , mlr      = \ (a,aPos) m m1 (d,dPos) -> if
@@ -161,8 +164,8 @@ prettyPaths = SigEnergyMin
       [x ++ y]
   , hairpin = \  left [region] right  ->
       ["Hairpin Loop (" ++ show left ++ "," ++ show right ++ ") " ++ region]
-  , interior = \ regionL [closed] regionR ->
-      ["Interior loop (" ++ show regionL ++ ") (" ++ show regionR ++  ") " ++ closed]
+  , interior = \ regionL [closed] (subtract 1 -> c, subtract 1 -> d) ->
+      ["Interior loop (" ++ show regionL ++ ") (" ++ show c ++ "," ++ show d ++  "), " ++ closed]
   , mlr = \ _ [m] [m1] _ ->
       ["mlr " ++ m ++ m1 ++ "mlr "]
   , mcm_1 = \ [region] [closed] ->
