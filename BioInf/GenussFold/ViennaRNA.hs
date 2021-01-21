@@ -33,9 +33,8 @@ Verbose
 Grammar: EnergyMin
 N: a_Struct
 N: b_Closed
-N: c_Region
-N: e_M
-N: f_M1
+N: c_M
+N: d_M1
 
 T: nt
 T: regionCtx
@@ -48,17 +47,14 @@ a_Struct -> nil          <<< e
 
 b_Closed -> hairpin      <<< regionCtx
 b_Closed -> interior     <<< regionCtx b_Closed regionCtx
-b_Closed -> mlr          <<< nt e_M f_M1 nt
+b_Closed -> mlr          <<< nt c_M d_M1 nt
 
-e_M -> mcm_1             <<< c_Region b_Closed
-e_M -> mcm_2             <<< e_M nt b_Closed nt
-e_M -> mcm_3             <<< e_M nt
+c_M -> mcm_1             <<< regionCtx b_Closed
+c_M -> mcm_2             <<< c_M nt b_Closed nt
+c_M -> mcm_3             <<< c_M nt
 
-f_M1 -> ocm_1            <<< f_M1 nt
-f_M1 -> ocm_2            <<< nt b_Closed nt
-
-c_Region -> region       <<< nt c_Region
-c_Region -> nil          <<< e
+d_M1 -> ocm_1            <<< d_M1 nt
+d_M1 -> ocm_2            <<< nt b_Closed nt
 
 //
 Emit: EnergyMin
@@ -118,7 +114,7 @@ energyMinAlg input = SigEnergyMin
              | pairs a d -> m + m1 - 1  -- energy of an interiorLoop a d b c   but only iff it pairs? otherwise search until found? with regionCtx?
              | otherwise   -> ignore
 
-  , mcm_1 = \ region closed -> region + closed
+  , mcm_1 = \ _ closed -> closed
 
   , mcm_2 = \  m (a,cPos) closed (b,dPos) -> if
           | pairs a b -> m + closed + 4.5
@@ -127,7 +123,6 @@ energyMinAlg input = SigEnergyMin
   , mcm_3 = \  m _ ->  m
   , ocm_1 = \  m1 _ -> m1
   , ocm_2 = \ (a,aPos) closed (b,bPos) -> if pairs a b then closed else ignore
-  , region  = \ _ ss      -> ss
   , h    =   SM.foldl' min (ignore)
   }
 {-# INLINE energyMin #-}
@@ -140,12 +135,11 @@ prettyStructCharShort = SigEnergyMin
   , hairpin = \  hairpin  -> ["(. . .)"]
   , interior = \ regionL [closed] regionR -> ["(" ++ show regionL ++ "(" ++ closed ++ ")" ++ show regionR ++ ")" ]
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
-  , mcm_1 = \ [region] [closed] -> [ region ++ closed ]
+  , mcm_1 = \ region [closed] -> [ show region ++ closed ]
   , mcm_2 = \ [m] _ [closed] _ -> [m ++ "(" ++ closed ++ ")"]
   , mcm_3 = \ [m] _ -> [m ++ ".m3"]
   , ocm_1 = \ [m1] _ -> [m1 ++ ".o1"]
   , ocm_2 = \ _ [x] _ -> ["(" ++ x ++ ")"]
-  , region = \ _ [ss] -> ["r" ++ ss]
   , h   = SM.toList
   }
 {-# INLINE prettyStructCharShort #-}
@@ -163,13 +157,12 @@ prettyPaths = SigEnergyMin
       ["Interior loop (" ++ show regionL ++ ") (" ++ show c ++ "," ++ show d ++  "), " ++ closed]
   , mlr = \ _ [m] [m1] _ ->
       ["mlr " ++ m ++ m1 ++ "mlr "]
-  , mcm_1 = \ [region] [closed] ->
-      [ region ++ closed ]
+  , mcm_1 = \ region [closed] ->
+      [ show region ++ closed ]
   , mcm_2 = \ [m] _ [closed] _ -> [m ++ "mcm2 " ++ closed ++  "mcm2"]
   , mcm_3 = \ [m] _ -> [m ++ " mcm3"]
   , ocm_1 = \ [m1] _ -> [m1 ++ "."]
   , ocm_2 = \ _ [x] _ -> ["ocm2 " ++ x ++  "ocm2"]
-  , region = \ _ [ss] -> ["r" ++ ss]
   , h   = SM.toList
   }
 {-# INLINE prettyPaths #-}
@@ -179,9 +172,9 @@ prettyPaths = SigEnergyMin
 energyMin :: Int -> String -> (Double,[[String]])
 energyMin k inp = (z, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
-  !(Z:.a:.b:.c:.e:.f) = runInsideForward i
+  !(Z:.a:.b:.e:.f) = runInsideForward i
   z = unId $ axiom a -- gets the value from the table
-  bs = runInsideBacktrack i (Z:.a:.b:.c:.e:.f)
+  bs = runInsideBacktrack i (Z:.a:.b:.e:.f)
 {-# NOINLINE energyMinAlg #-}
 
 type X = ITbl Id Unboxed Subword Double
@@ -194,19 +187,17 @@ runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
                         (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (266999.0) []))
                         (ITbl 0 2 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (366999.0) []))
                         (ITbl 0 3 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (466999.0) []))
-                        (ITbl 0 4 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (566999.0) []))
                         (ntPos i)
                         (idxStrng1 1 31 i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X:.X -> [[String]] -- for the non-terminals
-runInsideBacktrack i (Z:.a:.b:.c:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
+runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X -> [[String]] -- for the non-terminals
+runInsideBacktrack i (Z:.a:.b:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
 --  where !(Z:.g:.h:.j:.k:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyStructCharShort)
-  where !(Z:.g:.h:.j:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths)
+  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths)
                           (toBacktrack a (undefined :: Id a -> Id a))
                           (toBacktrack b (undefined :: Id b -> Id b))
-                          (toBacktrack c (undefined :: Id c -> Id c))
                           (toBacktrack e (undefined :: Id e -> Id e))
                           (toBacktrack f (undefined :: Id f -> Id f))
                           (ntPos i)
