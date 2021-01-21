@@ -98,7 +98,7 @@ interiorLoopEnergy _ _ = -1
 energyMinAlg :: Monad m => VU.Vector Char ->  SigEnergyMin m Double Double NtPos (Pos,Pos)
 energyMinAlg input = SigEnergyMin
   { nil  = \ () -> 0.00
-  , unpaired = \ _ ss -> ss + 10.00 -- should be higher than any hairpin penalty, i think
+  , unpaired = \ _ ss -> ss + 10.00
 
   , juxtaposed   = \ x y -> x + y
   , hairpin  = \ (left, subtract 1 -> right) -> if
@@ -106,7 +106,7 @@ energyMinAlg input = SigEnergyMin
              | otherwise -> ignore
 
 -- b_Closed -> interior <<< regionCtx b_Closed regionCtx
-  , interior = \ (aPos,bPos) closed (subtract 1 -> cPos, subtract 1 -> dPos) -> if   -- i VU.! a/b/c/d
+  , interior = \ (aPos,bPos) closed (subtract 1 -> cPos, subtract 1 -> dPos) -> if
              | pairs (input VU.! aPos) (input VU.! dPos) && pairs (input VU.! bPos) (input VU.! cPos) -> closed - 1 -- + interiorLoopEnergy (a,d) (b,c) -- + fromIntegral (bPos-aPos-1) + fromIntegral (dPos-cPos-1)  -- calculate energy with InteriorLoop a d b c 0
              | otherwise -> ignore
 
