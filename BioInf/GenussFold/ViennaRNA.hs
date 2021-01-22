@@ -103,7 +103,7 @@ energyMinAlg input = SigEnergyMin
     -- @TODO remove constraints of allowing only stacks no bulges
   , interior = \ (aPos,bPos) closed (subtract 1 -> cPos, subtract 1 -> dPos) -> if
              | (bPos-aPos == 1) && (dPos-cPos == 1) && pairs (input VU.! aPos) (input VU.! dPos) && pairs (input VU.! bPos) (input VU.! cPos) ->
-                 closed + interiorLoopEnergy (input VU.! aPos ,input VU.! dPos) (input VU.! bPos, input VU.! cPos)
+                 closed + interiorLoopEnergy (input VU.! aPos, input VU.! dPos) (input VU.! bPos, input VU.! cPos)
              | otherwise -> ignore
 
   , mlr      = \ (a,aPos) m m1 (d,dPos) -> if
@@ -126,13 +126,13 @@ prettyStructCharShort = SigEnergyMin
   { nil = \ () ->  [""]
   , unpaired = \ _ [ss] -> ["u" ++ ss]
   , juxtaposed = \ [x] [y] -> [x ++ y]
-  , hairpin = \  _  -> ["(. . .)"]
-  , interior = \ regionL [closed] regionR -> ["(" ++ show regionL ++ "(" ++ closed ++ ")" ++ show regionR ++ ")" ]
+  , hairpin = \  (left,subtract 1 -> right)  -> ["(" ++ replicate (right-left-1) '.' ++ ")"]
+  , interior = \ regionL [closed] regionR -> ["(" ++ closed ++ ")" ] -- @TODO only valid as long no bulges are processed
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
-  , mcm_1 = \ region [closed] -> [ show region ++ closed ]
+  , mcm_1 = \ (left,subtract 1 -> right) [closed] -> [ replicate (right-left-1) '.' ++ closed ]
   , mcm_2 = \ [m] [closed] -> [m ++ closed ]
-  , mcm_3 = \ [m] _ -> [m ++ ".m3"]
-  , ocm_1 = \ [m1] -> [m1 ++ ".o1"]
+  , mcm_3 = \ [m] _ -> [m]
+  , ocm_1 = \ [m1] -> [m1]
   , ocm_2 = \ [x] _ -> [x]
   , h   = SM.toList
   }
@@ -149,9 +149,9 @@ prettyPaths = SigEnergyMin
       ["Interior loop (" ++ show a ++ "," ++ show d ++ ") (" ++ show b ++ "," ++ show c ++  "), " ++ closed]
   , mlr = \ a [m] [m1] b ->
       ["Multi (" ++ show a ++ "," ++ show b ++ ") m:" ++ m ++ " m1: " ++ m1 ++ " Multi (?,?) "]
-  , mcm_1 = \ region [closed] -> [ show region ++ closed ]
-  , mcm_2 = \ [m] [closed] -> [m ++ "mcm2 " ++ closed ++  "mcm2"]
-  , mcm_3 = \ [m] _ -> [m ++ " mcm3"]
+  , mcm_1 = \ _ [closed] -> [closed]
+  , mcm_2 = \ [m] [closed] -> [m ++ closed]
+  , mcm_3 = \ [m] _ -> [m]
   , ocm_1 = \ [m1] -> [m1]
   , ocm_2 = \ [x] _ -> [x]
   , h   = SM.toList
@@ -185,8 +185,8 @@ runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
 
 runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X -> [[String]] -- for the non-terminals
 runInsideBacktrack i (Z:.a:.b:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
---  where !(Z:.g:.h:.j:.k:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyStructCharShort)
-  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths)
+  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyStructCharShort)
+--  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths)
                           (toBacktrack a (undefined :: Id a -> Id a))
                           (toBacktrack b (undefined :: Id b -> Id b))
                           (toBacktrack e (undefined :: Id e -> Id e))
