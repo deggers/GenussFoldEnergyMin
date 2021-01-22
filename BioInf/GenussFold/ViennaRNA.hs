@@ -111,9 +111,7 @@ energyMinAlg input = SigEnergyMin
              | otherwise   -> ignore
 
   , mcm_1 = \ _ closed -> closed
-
   , mcm_2 = \  m closed ->  m + closed
-
   , mcm_3 = \  m _ ->  m
   , ocm_1 = \  m1 -> m1
   , ocm_2 = \ closed _ -> closed
