@@ -141,18 +141,15 @@ prettyStructCharShort = SigEnergyMin
 prettyPaths :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
 prettyPaths = SigEnergyMin
   { nil = \ () ->  [""]
-  , unpaired = \  _ [ss] ->
-      [ss]
-  , juxtaposed = \ [x] [y] ->
-      [x ++ y]
+  , unpaired = \  _ [ss] -> [ss]
+  , juxtaposed = \ [x] [y] -> [x ++ y]
   , hairpin = \  (left, (-1 +) -> right)  ->
       ["Hairpin Loop (" ++ show left ++ "..." ++ show right ++ ") "]
   , interior = \ (a,b) [closed] (subtract 1 -> c, subtract 1 -> d) ->
       ["Interior loop (" ++ show a ++ "," ++ show d ++ ") (" ++ show b ++ "," ++ show c ++  "), " ++ closed]
   , mlr = \ a [m] [m1] b ->
       ["Multi (" ++ show a ++ "," ++ show b ++ ") m:" ++ m ++ " m1: " ++ m1 ++ " Multi (?,?) "]
-  , mcm_1 = \ region [closed] ->
-      [ show region ++ closed ]
+  , mcm_1 = \ region [closed] -> [ show region ++ closed ]
   , mcm_2 = \ [m] [closed] -> [m ++ "mcm2 " ++ closed ++  "mcm2"]
   , mcm_3 = \ [m] _ -> [m ++ " mcm3"]
   , ocm_1 = \ [m1] -> [m1]
