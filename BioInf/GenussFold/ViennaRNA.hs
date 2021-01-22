@@ -147,10 +147,10 @@ prettyPaths = SigEnergyMin
       [ss]
   , juxtaposed = \ [x] [y] ->
       [x ++ y]
-  , hairpin = \  (left, subtract 1 -> right)  ->
+  , hairpin = \  (left, (-1 +) -> right)  ->
       ["Hairpin Loop (" ++ show left ++ "..." ++ show right ++ ") "]
-  , interior = \ regionL [closed] (subtract 1 -> c, subtract 1 -> d) ->
-      ["Interior loop (" ++ show regionL ++ ") (" ++ show c ++ "," ++ show d ++  "), " ++ closed]
+  , interior = \ (a,b) [closed] (subtract 1 -> c, subtract 1 -> d) ->
+      ["Interior loop (" ++ show a ++ "," ++ show d ++ ") (" ++ show b ++ "," ++ show c ++  "), " ++ closed]
   , mlr = \ _ [m] [m1] _ ->
       ["mlr " ++ m ++ m1 ++ "mlr "]
   , mcm_1 = \ region [closed] ->
