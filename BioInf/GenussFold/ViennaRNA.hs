@@ -127,13 +127,13 @@ prettyStructCharShort = SigEnergyMin
   , unpaired = \ _ [ss] -> ["u" ++ ss]
   , juxtaposed = \ [x] [y] -> [x ++ y]
   , hairpin = \  (left,subtract 1 -> right)  -> ["(" ++ replicate (right-left-1) '.' ++ ")"]
-  , interior = \ regionL [closed] regionR -> ["(" ++ closed ++ ")" ] -- @TODO only valid as long no bulges are processed
+  , interior = \ _ [closed] _ -> ["(" ++ closed ++ ")"] -- @TODO only valid as long no bulges are processed
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
-  , mcm_1 = \ (left,subtract 1 -> right) [closed] -> [ replicate (right-left-1) '.' ++ closed ]
+  , mcm_1 = \ (left,  right) [closed] -> [replicate (right-left) '.' ++ closed ]
   , mcm_2 = \ [m] [closed] -> [m ++ closed ]
-  , mcm_3 = \ [m] _ -> [m]
+  , mcm_3 = \ [m] _ -> [m ++ "."]
   , ocm_1 = \ [m1] -> [m1]
-  , ocm_2 = \ [x] _ -> [x]
+  , ocm_2 = \ [x] _ -> [x ++ "."]
   , h   = SM.toList
   }
 {-# INLINE prettyStructCharShort #-}
