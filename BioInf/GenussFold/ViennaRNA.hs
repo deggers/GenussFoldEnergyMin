@@ -88,16 +88,16 @@ interiorLoopEnergy ('U','G') ('A','U') = -1.00
 interiorLoopEnergy ('A','U') ('A','U') = -0.90
 interiorLoopEnergy ('G','C') ('A','U') = -2.40
 interiorLoopEnergy ('A','U') ('G','C') = -2.10
-interiorLoopEnergy _ _ = -1 
+interiorLoopEnergy _ _ = -1.51
 
 energyMinAlg :: Monad m => VU.Vector Char ->  SigEnergyMin m Double Double NtPos (Pos,Pos)
 energyMinAlg input = SigEnergyMin
   { nil  = \ () -> 0.00
   , unpaired = \ _ ss -> ss + 1.00
-
   , juxtaposed   = \ x y -> x + y
+
   , hairpin  = \ (left, subtract 1 -> right) -> if
-             |  (right-left) > 3 && pairs (input VU.! left) (input VU.! right) -> fromIntegral (5 + right-left)
+             |  (right-left) > 3 && pairs (input VU.! left) (input VU.! right) -> 6.5
              | otherwise -> ignore
 
     -- @TODO remove constraints of allowing only stacks no bulges
