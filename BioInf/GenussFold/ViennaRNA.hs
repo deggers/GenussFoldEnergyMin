@@ -50,11 +50,11 @@ b_Closed -> interior     <<< regionCtx b_Closed regionCtx
 b_Closed -> mlr          <<< nt c_M d_M1 nt
 
 c_M -> mcm_1             <<< regionCtx b_Closed
-c_M -> mcm_2             <<< c_M nt b_Closed nt
+c_M -> mcm_2             <<< c_M b_Closed
 c_M -> mcm_3             <<< c_M nt
 
-d_M1 -> ocm_1            <<< d_M1 nt
-d_M1 -> ocm_2            <<< nt b_Closed nt
+d_M1 -> ocm_1            <<< b_Closed
+d_M1 -> ocm_2            <<< d_M1 nt
 
 //
 Emit: EnergyMin
@@ -112,13 +112,11 @@ energyMinAlg input = SigEnergyMin
 
   , mcm_1 = \ _ closed -> closed
 
-  , mcm_2 = \  m (a,aPos) closed (b,bPos) -> if
-          | pairs a b -> m + closed
-          | otherwise ->  ignore
+  , mcm_2 = \  m closed ->  m + closed
 
   , mcm_3 = \  m _ ->  m
-  , ocm_1 = \  m1 _ -> m1
-  , ocm_2 = \ (a,aPos) closed (b,bPos) -> if pairs a b then closed else ignore
+  , ocm_1 = \  m1 -> m1
+  , ocm_2 = \ closed _ -> closed
   , h    =   SM.foldl' min (ignore)
   }
 {-# INLINE energyMin #-}
@@ -132,10 +130,10 @@ prettyStructCharShort = SigEnergyMin
   , interior = \ regionL [closed] regionR -> ["(" ++ show regionL ++ "(" ++ closed ++ ")" ++ show regionR ++ ")" ]
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
   , mcm_1 = \ region [closed] -> [ show region ++ closed ]
-  , mcm_2 = \ [m] _ [closed] _ -> [m ++ "(" ++ closed ++ ")"]
+  , mcm_2 = \ [m] [closed] -> [m ++ closed ]
   , mcm_3 = \ [m] _ -> [m ++ ".m3"]
-  , ocm_1 = \ [m1] _ -> [m1 ++ ".o1"]
-  , ocm_2 = \ _ [x] _ -> ["(" ++ x ++ ")"]
+  , ocm_1 = \ [m1] -> [m1 ++ ".o1"]
+  , ocm_2 = \ [x] _ -> [x]
   , h   = SM.toList
   }
 {-# INLINE prettyStructCharShort #-}
@@ -151,14 +149,14 @@ prettyPaths = SigEnergyMin
       ["Hairpin Loop (" ++ show left ++ "..." ++ show right ++ ") "]
   , interior = \ (a,b) [closed] (subtract 1 -> c, subtract 1 -> d) ->
       ["Interior loop (" ++ show a ++ "," ++ show d ++ ") (" ++ show b ++ "," ++ show c ++  "), " ++ closed]
-  , mlr = \ _ [m] [m1] _ ->
-      ["mlr " ++ m ++ m1 ++ "mlr "]
+  , mlr = \ a [m] [m1] b ->
+      ["Multi (" ++ show a ++ "," ++ show b ++ ") m:" ++ m ++ " m1: " ++ m1 ++ " Multi (?,?) "]
   , mcm_1 = \ region [closed] ->
       [ show region ++ closed ]
-  , mcm_2 = \ [m] _ [closed] _ -> [m ++ "mcm2 " ++ closed ++  "mcm2"]
+  , mcm_2 = \ [m] [closed] -> [m ++ "mcm2 " ++ closed ++  "mcm2"]
   , mcm_3 = \ [m] _ -> [m ++ " mcm3"]
-  , ocm_1 = \ [m1] _ -> [m1 ++ "."]
-  , ocm_2 = \ _ [x] _ -> ["ocm2 " ++ x ++  "ocm2"]
+  , ocm_1 = \ [m1] -> [m1]
+  , ocm_2 = \ [x] _ -> [x]
   , h   = SM.toList
   }
 {-# INLINE prettyPaths #-}
