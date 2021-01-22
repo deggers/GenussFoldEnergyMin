@@ -100,19 +100,20 @@ energyMinAlg input = SigEnergyMin
              |  (right-left) > 3 && pairs (input VU.! left) (input VU.! right) -> fromIntegral (5 + right-left)
              | otherwise -> ignore
 
--- b_Closed -> interior <<< regionCtx b_Closed regionCtx
+    -- @TODO remove constraints of allowing only stacks no bulges
   , interior = \ (aPos,bPos) closed (subtract 1 -> cPos, subtract 1 -> dPos) -> if
-             | pairs (input VU.! aPos) (input VU.! dPos) && pairs (input VU.! bPos) (input VU.! cPos) -> closed - 1 -- + interiorLoopEnergy (a,d) (b,c) -- + fromIntegral (bPos-aPos-1) + fromIntegral (dPos-cPos-1)  -- calculate energy with InteriorLoop a d b c 0
+             | (bPos-aPos == 1) && (dPos-cPos == 1) && pairs (input VU.! aPos) (input VU.! dPos) && pairs (input VU.! bPos) (input VU.! cPos) ->
+                 closed + interiorLoopEnergy (input VU.! aPos ,input VU.! dPos) (input VU.! bPos, input VU.! cPos)
              | otherwise -> ignore
 
   , mlr      = \ (a,aPos) m m1 (d,dPos) -> if
-             | pairs a d -> m + m1 - 1  -- energy of an interiorLoop a d b c   but only iff it pairs? otherwise search until found? with regionCtx?
+             | pairs a d -> m + m1 + 3  -- energy of an interiorLoop a d b c   but only iff it pairs? otherwise search until found? with regionCtx?
              | otherwise   -> ignore
 
   , mcm_1 = \ _ closed -> closed
 
   , mcm_2 = \  m (a,aPos) closed (b,bPos) -> if
-          | pairs a b -> m + closed + 4.5
+          | pairs a b -> m + closed
           | otherwise ->  ignore
 
   , mcm_3 = \  m _ ->  m
