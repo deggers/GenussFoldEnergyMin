@@ -107,7 +107,7 @@ energyMinAlg input = SigEnergyMin
              | otherwise -> ignore
 
   , mlr      = \ (a,aPos) m m1 (d,dPos) -> if
-             | pairs a d -> m + m1 + 3  -- energy of an interiorLoop a d b c   but only iff it pairs? otherwise search until found? with regionCtx?
+             | pairs a d -> m + m1 + 3
              | otherwise   -> ignore
 
   , mcm_1 = \ _ closed -> closed
