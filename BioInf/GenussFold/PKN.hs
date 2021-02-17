@@ -1,5 +1,6 @@
+-- |
 
-module BioInf.GenussFold.PKN where
+module Git.GenussFoldEnergyMin.BioInf.GenussFold.PKN where
 
 import           Control.Applicative
 import           Control.Monad
@@ -9,16 +10,16 @@ import           Data.List
 import           Data.Vector.Fusion.Util
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
-import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
 
 import           ADP.Fusion
+import           ADP.Fusion.Base.Subword
 import           Data.PrimitiveArray as PA hiding (map)
+import           ADP.Fusion.SynVar.Fill
 
 import           FormalLanguage
-
 
 
 -- | Define signature and grammar
@@ -28,46 +29,96 @@ Verbose
 
 Grammar: PKN
 N: S
-{-
- - <U,2> is a split non-terminal.
- -
- - We explicitly introduce <U> and <V> as we want to have @pk1@ and @pk2@
- - in place. In principle, we could make use of an intermediate recursive
- - syntactic variable to ease the memory load, but this is simpler.
- -}
-N: <U,2>
-N: <V,2>
-T: base
+N: <X,2>
+N: <Y,2>
+N: <Z,2>
+T: c
 S: S
-S -> unp <<< S base
-S -> jux <<< S base S base
+
+S -> unp <<< S c
+-- S -> jux <<< S c S c
 S -> nil <<< e
-S -> pse <<< U V U V
+S -> khp <<< X Y X Z Y Z
 
-<U,U> -> pk1 <<< [S,-] [base,-] <U,U> [-,S] [-,base]
-<U,U> -> nll <<< [e,e]
+<X,X> -> pk1 <<< [c,-] <X,X> [-,c]
+<X,X> -> nll <<< [e,e]
 
-<V,V> -> pk2 <<< [S,-] [base,-] <V,V> [-,S] [-,base]
-<V,V> -> nll <<< [e,e]
+-- <W,W> -> pk1 <<< [c,-] <X,X> [-,c]
+-- <W,W> -> pk1 <<< [c,-] <W,W> [-,c]
+
+<Y,Y> -> pk2 <<< [S,-] [c,-] <Y,Y> [-,S] [-,c]
+<Y,Y> -> nll <<< [e,e]
+
+<Z,Z> -> pk3 <<< [c,-] <Z,Z> [-,c]
+<Z,Z> -> nll <<< [e,e]
+
 //
 Emit: PKN
 |]
+-- X Z perfect helicey, but Y is inside hairpin
+-- Hier fehlen stacking contributions um generell nützlich zu sein
+-- zur erweiterung aber ausirechend
 
+-- wie sähe eine "einfach" erweiterung dieser grammatik aus für kissing hp
+-- robert kissing hairpins paper was wird benutzt damit das günstiger wird algorithmtisch gesehen
+-- welche argument notwendig damit es günstiger wird -- wie hier umsetzbar ? :: vermutlich perfect helices gemeint?
+-- vllt laufzeit nicht machbar, aber struktur muss übereinstimmen -> Daher erst Idee der Struktur, dann optimierung
+-- https://pub.uni-bielefeld.de/download/1894008/2238812/TheisJanssenGiegerich2010_pkiss
+
+-- wie formulieren, damit es stacks baut ? pk variante von U und V mit stacks
+-- ähnlich wie bei ViennaRNA-stacked version
+{-
+Ho
+Hoener zu Siederdissen, Christian
+5:35 PM
+VV -> ScVVSc
+
+ScVVSc
+
+Ho
+Hoener zu Siederdissen, Christian
+5:36 PM
+Sc(ScVVSc)Sc
+
+Ho
+Hoener zu Siederdissen, Christian
+5:36 PM
+ScScVVScSc
+
+Ho
+Hoener zu Siederdissen, Christian
+5:37 PM
+Sc(Sc)ScVVScSc
+
+Ho
+Hoener zu Siederdissen, Christian
+5:37 PM
+Sc(c)ScVVScSc
+
+Sc.ScVVScSc
+
+Ho
+Hoener zu Siederdissen, Christian
+5:38 PM
+Sc.cVVScSc
+-}
 makeAlgebraProduct ''SigPKN
 
--- | Evaluation algebra
+-- bpmax :: Monad m => SigPKN m Int Int Char Char -> In newer version 2D Terminal needs 2 types
 bpmax :: Monad m => SigPKN m Int Int Char
 bpmax = SigPKN
   { unp = \ x c     -> x
-  , jux = \ x c y d -> if c `pairs` d then x + y + 1 else -999999
-  , pse = \ () () x y -> x + y
+--  , jux = \ x c y d -> if c `pairs` d then x + y + 0 else -999999
+  , khp = \ () () x () y z -> let m = minimum [x,y,z] in if m > 0 then x + y +z else  -888888  -- iff one is zero than penalty
   , nil = \ ()      -> 0
-  , pk1 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if a `pairs` b then x + y + z + 1 else -888888
+  , pk1 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
   , pk2 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if a `pairs` b then x + y + z + 1 else -888888
+  , pk3 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
   , nll = \ (Z:.():.()) -> 0
   , h   = SM.foldl' max (-999999)
   }
 {-# INLINE bpmax #-}
+
 
 pairs !c !d
   =  c=='A' && d=='U'
@@ -78,6 +129,7 @@ pairs !c !d
   || c=='U' && d=='G'
 {-# INLINE pairs #-}
 
+
 -- |
 --
 -- TODO It could be beneficial to introduce
@@ -85,15 +137,15 @@ pairs !c !d
 -- or something isomorphic. While [String] works, it allows for too many
 -- possibilities here! ([] ist lightweight, on the other hand ...)
 
--- Evaluation Algebra
 pretty :: Monad m => SigPKN m [String] [[String]] Char
 pretty = SigPKN
-  { unp = \ [x] c     -> [x ++ "-"]
-  , jux = \ [x] c [y] d -> [x ++ "(" ++ y ++ ")"]
-  , pse = \ () () [x1,x2] [y1,y2] -> [x1 ++ y1 ++ x2 ++ y2]
+  { unp = \ [x] c     -> [x ++ "."]
+--  , jux = \ [x] c [y] d -> [x ++ "(" ++ y ++ ")"]                                   -- x y x z y z
+  , khp = \ () () [x1,x2] () [y1,y2] [z1,z2] -> [x1 ++ y1 ++ x2 ++ z1 ++ y2 ++ z2 ]   -- A B A C B C
   , nil = \ ()      -> [""]
-  , pk1 = \ (Z:.[x]:.()) (Z:.a:.()) [y1,y2] (Z:.():.[z]) (Z:.():.b) -> [x ++ "[" ++ y1 , y2 ++ z ++ "]"]
-  , pk2 = \ (Z:.[x]:.()) (Z:.a:.()) [y1,y2] (Z:.():.[z]) (Z:.():.b) -> [x ++ "{" ++ y1 , y2 ++ z ++ "}"]
+  , pk1 = \ (Z:.a:.()) [y1,y2] (Z:.():.b) -> ["(" ++ y1 , y2 ++ ")"]
+  , pk2 = \ (Z:.[x]:.()) (Z:.a:.()) [y1,y2] (Z:.():.[z]) (Z:.():.b) -> [ x ++ "[" ++ y1 , y2 ++ z ++ "]"]
+  , pk3 = \ (Z:.a:.()) [y1,y2] (Z:.():.b) -> ["{" ++ y1 , y2 ++ "}"]
   , nll = \ (Z:.():.()) -> ["",""]
   , h   = SM.toList
   }
@@ -112,29 +164,38 @@ pretty = SigPKN
 pknPairMax :: Int -> String -> (Int,[[String]])
 pknPairMax k inp = (d, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
-  !(Z:.t:.u:.v) = runInsideForward i
+  n = VU.length i
+  !(Z:.t:.u:.v:.w) = runInsideForward i
   d = unId $ axiom t
-  bs = runInsideBacktrack i (Z:.t:.u:.v)
+  bs = runInsideBacktrack i (Z:.t:.u:.v:.w)
 {-# NOINLINE pknPairMax #-}
 
-type X = ITbl Id Unboxed Subword Int
+-- Tw ::
+type X = ITbl Id Unboxed (Subword) Int
 type T = ITbl Id Unboxed (Z:.Subword:.Subword) Int
 
-runInsideForward :: VU.Vector Char -> Z:.X:.T:.T
+
+runInsideForward :: VU.Vector Char -> Z:.X:.T:.T:.T
 runInsideForward i = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
                    $ gPKN bpmax
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999) []))
                         (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (-777999) []))
                         (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (-888999) []))
+                        (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (-988999) []))
                         (chr i)
   where n = VU.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: VU.Vector Char -> Z:.X:.T:.T -> [[String]]
-runInsideBacktrack i (Z:.t:.u:.v) = unId $ axiom b
-  where !(Z:.b:._:._) = gPKN (bpmax <|| pretty)
+--type X' = BtITbl Unboxed (Subword) Int Id Id [String]
+--type T' = BtITbl Unboxed (Z:.Subword:.Subword) Int Id Id [String]
+
+runInsideBacktrack :: VU.Vector Char -> Z:.X:.T:.T:.T -> [[String]]
+runInsideBacktrack i (Z:.t:.u:.v:.w) = unId $ axiom b
+  where !(Z:.b:._:._:._) = gPKN (bpmax <|| pretty)
                           (toBacktrack t (undefined :: Id a -> Id a))
                           (toBacktrack u (undefined :: Id a -> Id a))
                           (toBacktrack v (undefined :: Id a -> Id a))
+                          (toBacktrack w (undefined :: Id a -> Id a))
                           (chr i)
+                      --    :: Z:.X':.T':.T'
 {-# NoInline runInsideBacktrack #-}
