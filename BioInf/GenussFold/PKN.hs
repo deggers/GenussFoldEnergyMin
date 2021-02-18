@@ -55,53 +55,7 @@ S -> khp <<< X Y X Z Y Z
 //
 Emit: PKN
 |]
--- X Z perfect helicey, but Y is inside hairpin
--- Hier fehlen stacking contributions um generell nützlich zu sein
--- zur erweiterung aber ausirechend
 
--- wie sähe eine "einfach" erweiterung dieser grammatik aus für kissing hp
--- robert kissing hairpins paper was wird benutzt damit das günstiger wird algorithmtisch gesehen
--- welche argument notwendig damit es günstiger wird -- wie hier umsetzbar ? :: vermutlich perfect helices gemeint?
--- vllt laufzeit nicht machbar, aber struktur muss übereinstimmen -> Daher erst Idee der Struktur, dann optimierung
--- https://pub.uni-bielefeld.de/download/1894008/2238812/TheisJanssenGiegerich2010_pkiss
-
--- wie formulieren, damit es stacks baut ? pk variante von U und V mit stacks
--- ähnlich wie bei ViennaRNA-stacked version
-{-
-Ho
-Hoener zu Siederdissen, Christian
-5:35 PM
-VV -> ScVVSc
-
-ScVVSc
-
-Ho
-Hoener zu Siederdissen, Christian
-5:36 PM
-Sc(ScVVSc)Sc
-
-Ho
-Hoener zu Siederdissen, Christian
-5:36 PM
-ScScVVScSc
-
-Ho
-Hoener zu Siederdissen, Christian
-5:37 PM
-Sc(Sc)ScVVScSc
-
-Ho
-Hoener zu Siederdissen, Christian
-5:37 PM
-Sc(c)ScVVScSc
-
-Sc.ScVVScSc
-
-Ho
-Hoener zu Siederdissen, Christian
-5:38 PM
-Sc.cVVScSc
--}
 makeAlgebraProduct ''SigPKN
 
 -- bpmax :: Monad m => SigPKN m Int Int Char Char -> In newer version 2D Terminal needs 2 types
