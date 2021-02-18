@@ -109,7 +109,7 @@ bpmax :: Monad m => SigPKN m Int Int Char
 bpmax = SigPKN
   { unp = \ x c     -> x
 --  , jux = \ x c y d -> if c `pairs` d then x + y + 0 else -999999
-  , khp = \ () () x () y z -> let m = minimum [x,y,z] in if m > 0 then x + y +z else  -888888  -- iff one is zero than penalty
+  , khp = \ () () x () y z -> let m = minimum [x,y,z] in if m >= 2 then x + y +z else  -888888  -- iff one is zero than penalty
   , nil = \ ()      -> 0
   , pk1 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
   , pk2 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if a `pairs` b then x + y + z + 1 else -888888
