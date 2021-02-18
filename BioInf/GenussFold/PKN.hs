@@ -151,16 +151,6 @@ pretty = SigPKN
   }
 {-# INLINE pretty #-}
 
--- |
---
--- @
--- [{]}(())
--- caguagcu
--- [ ]
---  { }
---     (())
--- @
-
 pknPairMax :: Int -> String -> (Int,[[String]])
 pknPairMax k inp = (d, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
