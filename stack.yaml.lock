@@ -5,6 +5,13 @@
 
 packages:
 - completed:
+    hackage: inline-c-0.5.6.1@sha256:c4b01035f3cb4ebd073ac95ac8be4a740c73d005217188d2f6cc3f11f5ee1c61,3319
+    pantry-tree:
+      size: 1420
+      sha256: b9a585d8fcd22dd3cc68381cebdb54c09126f9773463a3c52df924f9b71ed032
+  original:
+    hackage: inline-c-0.5.6.1
+- completed:
     hackage: ADPfusion-0.4.1.1@sha256:67eee59cb7b0c1e1552c21f44834ca62c9715b0fb6b60395134f35536e4dd5cd,13719
     pantry-tree:
       size: 4651

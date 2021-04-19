@@ -35,22 +35,19 @@ N: <Z,2>
 T: c
 S: S
 
-S -> unp <<< S c
--- S -> jux <<< S c S c
+S -> unp <<< c S
 S -> nil <<< e
 S -> khp <<< X Y X Z Y Z
 
---               pairs pairs parse       pairs pairs parse
-<X,X> -> pk1 <<< [c,-] [c,-] [c,-] <X,X> [-,c] [-,c] [-,c]   -- will parse 6 nts
---                i1    i2     u          k2    k1
+-- LEFT-HAIRPIN
+<X,X> -> pk1 <<< [c,-] <X,X> [-,c]
 <X,X> -> nll <<< [e,e]
 
--- <W,W> -> pk1 <<< [c,-] <X,X> [-,c]
--- <W,W> -> pk1 <<< [c,-] <W,W> [-,c]
-
-<Y,Y> -> pk2 <<< [S,-] [c,-] <Y,Y> [-,S] [-,c]   -- shall parse 4
+-- CONNECTING-HELICE
+<Y,Y> -> pk2 <<< [c,-] <Y,Y> [-,c]
 <Y,Y> -> nll <<< [e,e]
 
+-- RIGHT-HAIRPIN
 <Z,Z> -> pk3 <<< [c,-] <Z,Z> [-,c]
 <Z,Z> -> nll <<< [e,e]
 
@@ -63,18 +60,16 @@ makeAlgebraProduct ''SigPKN
 -- bpmax :: Monad m => SigPKN m Int Int Char Char -> In newer version 2D Terminal needs 2 types
 bpmax :: Monad m => SigPKN m Int Int Char
 bpmax = SigPKN
-  { unp = \ x c     -> x
---  , jux = \ x c y d -> if c `pairs` d then x + y + 0 else -999999
+  { unp = \ c x     -> x
   , khp = \ () () x () y z -> let m = minimum [x,y,z] in if m >= 1 then x + y +z else  -888888  -- iff one is zero than penalty
   , nil = \ ()      -> 0
-  , pk1 = \ (Z:.i1:.()) (Z:.i2:.()) (Z:._:.()) y (Z:.():.k2) (Z:.():.k1) (Z:.():._) -> if i1 `pairs` k1 && i2 `pairs` k2 then y + 1 else -888888
-  , pk2 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if a `pairs` b then x + y + z + 1 else -888888
+  , pk1 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
+  , pk2 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
   , pk3 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
   , nll = \ (Z:.():.()) -> 0
   , h   = SM.foldl' max (-999999)
   }
 {-# INLINE bpmax #-}
-
 
 pairs !c !d
   =  c=='A' && d=='U'
@@ -95,14 +90,13 @@ pairs !c !d
 
 pretty :: Monad m => SigPKN m [String] [[String]] Char
 pretty = SigPKN
-  { unp = \ [x] c     -> [x ++ "."]
---  , jux = \ [x] c [y] d -> [x ++ "(" ++ y ++ ")"]                                   -- x y x z y z
-  , khp = \ () () [x1,x2] () [y1,y2] [z1,z2] -> [x1 ++ y1 ++ x2 ++ z1 ++ y2 ++ z2 ]   -- A B A C B C
+  { unp = \ c [x]     -> ["." ++ x]
+--  khp <<< X  c  Y    X    c  S  c Z    Y    c      Z
+  , khp = \ () () [x1,x2] () [y1,y2] [z1,z2] -> [x1 ++ y1 ++ x2 ++ z1 ++ y2 ++ z2 ]
   , nil = \ ()      -> [""]
---                                  pairs pairs parse       pairs pairs parse
-  , pk1 = \ _ _ _ [y1,y2] _ _ _ -> ["((." ++ y1 , y2 ++ "))."]
-  , pk2 = \ (Z:.[x]:.()) (Z:.a:.()) [y1,y2] (Z:.():.[z]) (Z:.():.b) -> [ x ++ "[" ++ y1 , y2 ++ z ++ "]"]
-  , pk3 = \ (Z:.a:.()) [y1,y2] (Z:.():.b) -> ["(" ++ y1 , y2 ++ ")"]
+  , pk1 = \ _ [y1,y2] _ -> ["(" ++ y1 , y2 ++ ")"]
+  , pk2 = \ (Z:.a:.()) [y1,y2] (Z:.():.b) -> [ "[" ++ y1 , y2 ++ "]"]
+  , pk3 = \ _ [y1,y2] _ -> ["(" ++ y1 , y2 ++ ")"]
   , nll = \ (Z:.():.()) -> ["",""]
   , h   = SM.toList
   }
