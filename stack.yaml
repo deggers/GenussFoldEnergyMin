@@ -7,7 +7,6 @@ extra-deps:
 # - data-default-class-0.1.2.0@sha256:63e62120b7efd733a5a17cf59ceb43268e9a929c748127172d7d42f4a336e327,542
 - inline-c-0.5.6.1
 # - strict-0.4.0.1@sha256:08cf72ad570fddfe3b3424117bf20a303a1fb21047b40c1d6c8004c0e3e02a0b,4124
-
 - ADPfusion-0.4.1.1@sha256:67eee59cb7b0c1e1552c21f44834ca62c9715b0fb6b60395134f35536e4dd5cd,13719
 - FormalGrammars-0.2.1.1@sha256:3b2ee40eeeb0ec7f7ec97614e1733453346519dea30460ec53ad26401cb13564,7395
 - PrimitiveArray-0.6.1.0@sha256:a4f6909139f31e99447289839d7830ca9baf5dc0d938576d7308f1d798bd0592,4085
@@ -16,5 +15,7 @@ extra-deps:
 #- github: choener/ViennaRNA-bindings
 #  commit: eb159eff0eeb1aeef845c3ccd7b3a4a46f5545b4
 
+# CommandLineParsing
+- optparse-simple-0.0.3@sha256:3247a6ab753d68c128de1930b3eb07f12a209e4a1a532de00391392060b7c8c1,765
 ghc-options:
   "$locals": -W

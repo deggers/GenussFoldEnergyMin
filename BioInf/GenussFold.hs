@@ -3,5 +3,4 @@ module BioInf.GenussFold
   ( energyMin
   ) where
 
-import BioInf.GenussFold.EnergyMin (energyMin)
-
+import BioInf.GenussFold.ViennaRNA (energyMin)

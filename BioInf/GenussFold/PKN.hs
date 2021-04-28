@@ -1,6 +1,6 @@
 -- |
-
-module Git.GenussFoldEnergyMin.BioInf.GenussFold.PKN where
+-- read only
+module BioInf.GenussFold.PKN where
 
 import           Control.Applicative
 import           Control.Monad

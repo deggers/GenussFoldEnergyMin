@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module BioInf.GenussFold.ViennaRNA where
 
@@ -25,6 +26,8 @@ import           FormalLanguage
 
 import           BioInf.GenussFold.IndexToIndexParser
 import           BioInf.GenussFold.IdxStrng
+import qualified BioInf.ViennaRNA.Bindings.Inline as V
+--import           BioInf.ViennaRNA.Bindings.FFI.Fold as V
 
 -- | Define signature and grammar
 [formalLanguage|
@@ -97,7 +100,7 @@ energyMinAlg input = SigEnergyMin
   , juxtaposed   = \ x y -> x + y
 
   , hairpin  = \ (left, subtract 1 -> right) -> if
-             |  (right-left) > 3 && pairs (input VU.! left) (input VU.! right) -> 6.5
+             |  (right-left) > 3 && pairs (input VU.! left) (input VU.! right) -> 4.5 -- @TODO to be fixed
              | otherwise -> ignore
 
     -- @TODO remove constraints of allowing only stacks no bulges

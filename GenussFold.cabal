@@ -63,8 +63,11 @@ library
                , unordered-containers   >= 0.2      && < 0.3
                , vector                 >= 0.10     && < 0.11
                , strict                 == 0.4.0.1
+               , optparse-simple
+               , optparse-applicative
   exposed-modules:
     BioInf.GenussFold
+    BioInf.GenussFold.PKN
     BioInf.GenussFold.ViennaRNA
     BioInf.GenussFold.IdxStrng
     BioInf.GenussFold.IndexToIndexParser
@@ -103,6 +106,8 @@ executable GenussFold
                , FormalGrammars
                , ViennaRNA-bindings
                , GenussFold
+               , optparse-simple
+               , optparse-applicative
   hs-source-dirs:
     src
   default-language:
