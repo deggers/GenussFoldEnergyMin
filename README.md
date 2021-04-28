@@ -14,6 +14,9 @@ first step: implementing an energy based model
 # How to run 
 Just run "ghci stack" - the nix-shell cannot work right now as it takes the newest dependencies which are not working right now 
 
+❯ echo "AAACCCUUUAAAGGGUUU" | stack run -- -p 1 -c 10    
+
+
 #### Credit
 
 Christian Hoener zu Siederdissen  
