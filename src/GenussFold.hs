@@ -66,7 +66,7 @@ run (cmd) = do
     KHP c p -> do
       ls <- lines <$> getContents
       forM_ ls $ \l -> do
-        let (r,bs) = pknPairMax c l
+        let (r,bs) = pknPairMax c p l
         printf "%s   %d\n" l r
         forM_ bs $ \[b] -> printf "%s   %d\n" b r
 
