@@ -36,7 +36,7 @@ S: S
 S -> unp <<< c S
 S -> nil <<< e
 S -> jux <<< c S c S
-S -> khp <<< X Y X Z Y Z
+S -> khp <<< X Y X Z Y Z S
 
 -- LEFT-HAIRPIN
 <X,X> -> pk1 <<< [c,-] <X,X> [-,c]
@@ -61,7 +61,7 @@ bpmax :: Monad m => Int -> SigPKN m Int Int Char
 bpmax p = SigPKN
   { unp = \ c x     -> x
   , jux = \ c x d y -> if c `pairs` d then x + y + 1 else -999999
-  , khp = \ () () x () y z -> let m = minimum [x,y,z] in if m >= 1 then x + y + z + p else -888888  -- iff one is zero than penalty
+  , khp = \ () () x () y z s -> let m = minimum [x,y,z] in if m >= 1 then x + y + z + p + s else -888888  -- iff one is zero than penalty
   , nil = \ ()      -> 0
   , pk1 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
   , pk2 = \ (Z:.a:.()) y (Z:.():.b) -> if a `pairs` b then y + 1 else -888888
@@ -93,7 +93,7 @@ pretty = SigPKN
   { unp = \ c [x]     -> ["." ++ x]
   , jux = \ _ [x] _ [y] -> ["{" ++ x ++ "}" ++ y]
 --  khp <<< X  c  Y    X    c  S  c Z    Y    c      Z
-  , khp = \ () () [x1,x2] () [y1,y2] [z1,z2] -> [x1 ++ y1 ++ x2 ++ z1 ++ y2 ++ z2 ]
+  , khp = \ () () [x1,x2] () [y1,y2] [z1,z2] [s] -> [x1 ++ y1 ++ x2 ++ z1 ++ y2 ++ z2 ++ s ]
   , nil = \ ()      -> [""]
   , pk1 = \ _ [y1,y2] _ -> ["(" ++ y1 , y2 ++ ")"]
   , pk2 = \ (Z:.a:.()) [y1,y2] (Z:.():.b) -> [ "[" ++ y1 , y2 ++ "]"]
@@ -102,6 +102,21 @@ pretty = SigPKN
   , h   = SM.toList
   }
 {-# INLINE pretty #-}
+
+prettyParseTree :: Monad m => SigPKN m [String] [[String]] Char
+prettyParseTree = SigPKN
+  { unp = \ c [x]     -> ["UNP " ++ x]
+  , jux = \ _ [x] _ [y] -> ["JUX " ++ x ++ "JUX " ++ y]
+--  khp <<< X  c  Y    X    c  S  c Z    Y    c      Z
+  , khp = \ () () [x1,x2] () [y1,y2] [z1,z2] [s] -> [x1 ++ y1 ++ x2 ++ z1 ++ y2 ++ z2 ++ s ]
+  , nil = \ ()      -> ["NIL "]
+  , pk1 = \ _ [y1,y2] _ -> ["PK1 " ++ y1 , y2 ++ "PK1 "]
+  , pk2 = \ (Z:.a:.()) [y1,y2] (Z:.():.b) -> [ "PK2 " ++ y1 , y2 ++ "PK2 "]
+  , pk3 = \ _ [y1,y2] _ -> ["PK3 " ++ y1 , y2 ++ "PK3 "]
+  , nll = \ (Z:.():.()) -> ["NIL ","NIL "]
+  , h   = SM.toList
+  }
+{-# INLINE prettyParseTree #-}
 
 pknPairMax :: Int -> Int -> String -> (Int,[[String]])
 pknPairMax k p inp = (d, take k bs) where
