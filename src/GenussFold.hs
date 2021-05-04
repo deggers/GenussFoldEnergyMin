@@ -12,7 +12,9 @@ import BioInf.GenussFold.ViennaRNA
 -- sum type
 data Options = Nussinov
   { coopts      :: Int
-  }| KHP {
+  }
+  | KHP
+  {
     coopts :: Int
   , openPenalty :: Int
   }
