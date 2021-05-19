@@ -23,7 +23,7 @@ import           BioInf.GenussFold.Grammars.NLP
 -- bpmax :: Monad m => SigPKN m Int Int Char Char -> In newer version 2D Terminal needs 2 types
 bpmax :: Monad m => Int -> SigPKN m Int Int Char
 bpmax p = SigPKN
-  { unp = \ c x     -> x
+  { unp = \ _ x     -> x
   , jux = \ c x d y -> if c `pairs` d then x + y + 1 else -999999
   , pkn = \ () () x y -> let m = minimum [x,y] in if m >= 1 then x + y + p else -888888
   , tmp = \ t u -> t + u
@@ -46,7 +46,7 @@ pairs !c !d
 
 pretty :: Monad m => SigPKN m [String] [[String]] Char
 pretty = SigPKN
-  { unp = \ c [x]     -> ["." ++ x]
+  { unp = \ _ [x]     -> ["." ++ x]
   , jux = \ _ [x] _ [y] -> ["{" ++ x ++ "}" ++ y]
   , pkn = \ () () [x1,x2] [y1,y2] -> [x1 ++ y1 ++ x2 ++ y2]
   , tmp = \ [t] [u] -> [t ++ u]
