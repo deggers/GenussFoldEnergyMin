@@ -14,6 +14,7 @@ Verbose
 Grammar: PKN
 N: S
 N: T
+N: U
 N: <X,2>
 N: <Y,2>
 T: c
@@ -23,10 +24,15 @@ T -> nil <<< e
 T -> unp <<< c T
 T -> jux <<< c T c T
 
+-- think about a name
+-- Reason :: T X Y X Y cannot be resolved
+-- But :: X Y X Y T can be resolved
+U -> pkn <<< X Y X Y -- N hoch 5 statt vorher n hoch 6 - minimale laufzeit verbesserung
+
 S -> nil <<< e
 S -> unp <<< c T
 S -> jux <<< c T c T
-S -> pkn <<< T X Y X Y
+S -> tmp <<< T U  -- addition vom pk-free mit nem pk-teil :: annahme lineare energy modell
 
 -- - - K1 c T
 -- c T K2 - -
