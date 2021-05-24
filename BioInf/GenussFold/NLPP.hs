@@ -29,12 +29,16 @@ bpmax p = SigPKN
   , jux = \ a x b y
     -> if a `pairs` b then x + y + 1 else -999999
   , hPk = \ () () x y
+    -- H :: A B A B
     -> let m = minimum [x,y] in if m >= 1 then x + y - p else -888888
   , kPk = \ () () x () y z
+    -- K :: A B A C B C
     -> let m = minimum [x,y,z] in if m >= 1 then x + y + z - p else -888888
   , lPk = \ () () () x y z
+    -- L :: A B C A B C
     -> let m = minimum [x,y,z] in if m >= 1 then x + y + z - p else -888888
   , mPk = \ () () () x () y z w
+    -- M :: A B C A D B C D
     -> let m = minimum [x,y,z,w] in if m >= 1 then x + y + z + w - p else -888888
   , tmp = \ t u
     -> t + u
@@ -68,27 +72,31 @@ pretty = SigPKN
   { unp = \ _ [x]
     -> ["." ++ x]
   , jux = \ _ [x] _ [y]
-    -> ["{" ++ x ++ "}" ++ y]
+    -> ["(" ++ x ++ ")" ++ y]
   , hPk = \ () () [x1,x2] [y1,y2]
+    -- H :: A B A B
     -> [x1 ++ y1 ++ x2 ++ y2]
   , kPk = \ () () [x1,x2] () [y1,y2] [z1,z2]
+    -- K :: A B A C B C
     -> [x1 ++ y1 ++ x2 ++ z1 ++ y2 ++ z2]
   , lPk = \ () () () [x1,x2] [y1,y2] [z1,z2]
+    -- L :: A B C A B C
     -> [x1 ++ y1 ++ z1 ++ x2 ++ y2 ++ z2]
   , mPk = \ () () () [x1,x2] () [y1,y2] [z1,z2] [w1,w2]
-    -> [x1 ++ y1 ++ z1 ++ x2 ++ w1 ++ y2 ++ z2 ++ w2]
+    -- M :: A B C A D C B D
+    -> [x1 ++ y1 ++ z1 ++ x2 ++ w1 ++ z2 ++ y2 ++ w2]
   , tmp = \ [t] [u]
     -> [t ++ u]
   , nil = \ ()
     -> [""]
   , pk1 = \ _ (Z:.():.[x]) [y1,y2] _ (Z:.[y]:.())
-    -> ["(" ++ x ++ y1 , y2 ++ ")" ++ y ]
+    -> ["a" ++ x ++ y1 , y2 ++ "a" ++ y ]
   , pk2 = \ _ (Z:.():.[x]) [y1,y2] _ (Z:.[y]:.())
-    -> ["[" ++ x ++ y1 , y2 ++ "]" ++ y ]
+    -> ["b" ++ x ++ y1 , y2 ++ "b" ++ y ]
   , pk3 = \ _ (Z:.():.[x]) [y1,y2] _ (Z:.[y]:.())
-    -> ["[" ++ x ++ y1 , y2 ++ "]" ++ y ]
+    -> ["c" ++ x ++ y1 , y2 ++ "c" ++ y ]
   , pk4 = \ _ (Z:.():.[x]) [y1,y2] _ (Z:.[y]:.())
-    -> ["[" ++ x ++ y1 , y2 ++ "]" ++ y ]
+    -> ["d" ++ x ++ y1 , y2 ++ "d" ++ y ]
   , nll = \ (Z:.():.())
     -> ["",""]
   , h   = SM.toList
