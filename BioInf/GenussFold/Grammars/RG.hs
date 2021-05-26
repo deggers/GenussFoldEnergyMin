@@ -21,11 +21,10 @@ S: S      -- :: Startsymbol
 S -> nil <<< e
 S -> unp <<< c S
 S -> jux <<< c S c S
-S -> pkn <<< X S Y S X S Y S
+S -> pkn <<< X Y S X Y S
 
-<X,X> -> pk1 <<< [-,c] <X,X> [c,-]
 -- TODO do I need for the only-closing case?
---    -> pk1e <<< [-,c] [c,-]
+<X,X> -> pk1 <<< [-,c] [-S] <X,X> [c,-] [S,-]
 <X,X> -> nll <<< [e,e]
 
 <Y,Y> -> pk2 <<< [-,c] <Y,Y> [c,-]
