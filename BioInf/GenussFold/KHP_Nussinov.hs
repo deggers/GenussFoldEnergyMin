@@ -95,7 +95,6 @@ energyMin k p inp = (d, take k bs) where
 type X = ITbl Id Unboxed (Subword) Int
 type T = ITbl Id Unboxed (Z:.Subword:.Subword) Int
 
-
 runInsideForward :: VU.Vector Char -> Int -> Z:.X:.T:.T:.T
 runInsideForward i p = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
                    $ gPKN (bpmax p)

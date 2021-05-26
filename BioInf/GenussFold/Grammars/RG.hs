@@ -21,13 +21,13 @@ S: S      -- :: Startsymbol
 S -> nil <<< e
 S -> unp <<< c S
 S -> jux <<< c S c S
-S -> pkn <<< X Y S X Y S
+S -> pkn <<< X Y X Y
 
 -- TODO do I need for the only-closing case?
 <X,X> -> pk1 <<< [-,c] [-,S] <X,X> [c,-] [S,-]
 <X,X> -> nll <<< [e,e]
 
-<Y,Y> -> pk2 <<< [-,c] <Y,Y> [c,-]
+<Y,Y> -> pk2 <<< [-,c] [-,S] <Y,Y> [c,-] [S,-]
 <Y,Y> -> nll <<< [e,e]
 //
 Emit: PKN

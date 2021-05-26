@@ -39,6 +39,13 @@ packages:
       sha256: 6736ca6461d2664d589f349265a9679d9a617ad720df9d40c5fb2799736336eb
   original:
     hackage: OrderedBits-0.0.0.3@sha256:0ec273151bbd2fc8f415212ef6caac8553567fadf03422ac7644335fe3e99169,2803
+- completed:
+    hackage: optparse-simple-0.0.3@sha256:3247a6ab753d68c128de1930b3eb07f12a209e4a1a532de00391392060b7c8c1,765
+    pantry-tree:
+      size: 232
+      sha256: 5b44b37bf19474fc70cc500650c00860831eef9334cb46432395cb557c0fc730
+  original:
+    hackage: optparse-simple-0.0.3@sha256:3247a6ab753d68c128de1930b3eb07f12a209e4a1a532de00391392060b7c8c1,765
 snapshots:
 - completed:
     size: 285839
