@@ -24,7 +24,7 @@ S -> jux <<< c S c S
 S -> pkn <<< X Y S X Y S
 
 -- TODO do I need for the only-closing case?
-<X,X> -> pk1 <<< [-,c] [-S] <X,X> [c,-] [S,-]
+<X,X> -> pk1 <<< [-,c] [-,S] <X,X> [c,-] [S,-]
 <X,X> -> nll <<< [e,e]
 
 <Y,Y> -> pk2 <<< [-,c] <Y,Y> [c,-]
