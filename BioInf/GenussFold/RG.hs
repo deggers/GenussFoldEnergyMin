@@ -28,16 +28,18 @@ bpmax p = SigPKN
     -> x
   , jux = \ a x b y
     -> if a `pairs` b then x + y + 1 else -999999
-  , pkn = \ () s1 () s2 x s3 y s4
+  , pkn = \ () () x y
     -> let m = minimum [x,y] in if m >= 1 then x + y - p else -888888
   , nil = \ ()
     -> 0
-  , pk1 = \ (Z:.():.a) y (Z:.b:.())
-    -> if a `pairs` b then y + 1 else -888888
-  , pk2 = \ (Z:.():.a) y (Z:.b:.())
-    -> if a `pairs` b then y + 1 else -888888
-  , nll = \ (Z:.():.())
-    -> 0
+  , pk1 = \ (Z:.():.a) x (Z:.b:.()) (Z:.():.y) (Z:.z:.())
+    -> if a `pairs` b then y + x + z + 1 else -888888
+  , pk1b = \ (Z:.():.a) (Z:.b:.()) (Z:.():.s2) (Z:.s1:.())
+    -> if a `pairs` b then s1 + s2 + 1 else -99999
+  , pk2 = \ (Z:.():.a) x (Z:.b:.()) (Z:.():.y) (Z:.z:.())
+    -> if a `pairs` b then y + x + z + 1 else -888888
+  , pk2b = \ (Z:.():.a) (Z:.b:.()) (Z:.():.s2) (Z:.s1:.())
+    -> if a `pairs` b then s1 + s2 + 1 else -99999
   , h   = SM.foldl' max (-999999)
   }
 {-# INLINE bpmax #-}
@@ -56,17 +58,19 @@ pretty = SigPKN
   { unp = \ _ [x]
     -> ["." ++ x]
   , jux = \ _ [x] _ [y]
-    -> ["{" ++ x ++ "}" ++ y]
-  , pkn = \ () [s1] () [s2] [x1,x2] [s3] [y1,y2] [s4]
-    -> [x1 ++s1 ++ y1 ++ s2 ++ x2 ++ s3 ++ y2 ++ s4]
+    -> ["(" ++ x ++ ")" ++ y]
+  , pkn = \ () () [x1,x2] [y1,y2]
+    -> [x1 ++ y1 ++ x2 ++ y2]
   , nil = \ ()
     -> [""]
-  , pk1 = \ _ [y1,y2] _
-    -> ["(" ++ y1 , y2 ++ ")" ]
-  , pk2 = \ _ [y1,y2] _
-    -> ["[" ++ y1 , y2 ++ "]" ]
-  , nll = \ (Z:.():.())
-    -> ["",""]
+  , pk1 = \ (Z:.():._) [x1,x2] (Z:._:.()) (Z:.():.[s2]) (Z:.[s1]:.())
+    -> [x1 ++ "{" ++ s1 , "}" ++ x2 ++ s2]
+  , pk1b = \ (Z:.():._) (Z:._:.()) (Z:.():.[s2]) (Z:.[s1]:.())
+    -> ["{" ++ s1, s2 ++ "}"]
+  , pk2 = \ _ [x1,x2] _ (Z:.():.[s2]) (Z:.[s1]:.())
+    -> [x1 ++ "[" ++ s1 , "]" ++ x2 ++ s2]
+  , pk2b = \ (Z:.():._) (Z:._:.()) (Z:.():.[s2]) (Z:.[s1]:.())
+    -> ["[" ++ s1, s2 ++ "]"]
   , h   = SM.toList
   }
 {-# INLINE pretty #-}
