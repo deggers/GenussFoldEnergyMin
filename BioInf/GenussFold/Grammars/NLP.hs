@@ -38,10 +38,10 @@ S -> tmp <<< T U  -- addition vom pk-free mit nem pk-teil :: annahme lineare ene
 -- c T K2 - -
 
 <X,X> -> pk1 <<< [-,c] [-,T] <X,X> [c,-] [T,-]
-<X,X> -> nll <<< [e,e]
+<X,X> -> pk1b <<< [c,-] [-,c] [T,-] [-,T]
 
 <Y,Y> -> pk2 <<< [-,c] [-,T] <Y,Y> [c,-] [T,-]
-<Y,Y> -> nll <<< [e,e]
+<Y,Y> -> pk2b <<< [c,-] [-,c] [T,-] [-,T]
 //
 Emit: PKN
 |]
