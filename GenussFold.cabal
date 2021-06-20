@@ -72,6 +72,7 @@ library
     BioInf.GenussFold.IdxStrng
     BioInf.GenussFold.IndexToIndexParser
     BioInf.GenussFold.KHP_Nussinov
+    BioInf.GenussFold.Grammars.KHP_Nussinov
   default-language:
     Haskell2010
   default-extensions: BangPatterns
