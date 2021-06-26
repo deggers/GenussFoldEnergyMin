@@ -63,8 +63,8 @@ run (cmd) = do
       ls <- lines <$> getContents
       forM_ ls $ \l -> do
         let (r,bs) = energyMin coopts l
-        printf "%s   %f\n" l r
-        forM_ bs $ \[b] -> printf "%s   %f\n" b r
+        printf "%s   %d\n" l r
+        forM_ bs $ \[b] -> printf "%s   %d\n" b r
     KHP c p -> do
       ls <- lines <$> getContents
       forM_ ls $ \l -> do

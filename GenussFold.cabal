@@ -27,20 +27,14 @@ description:
                   basepair maximization scoring scheme.
                 .
 
-
-
 Extra-Source-Files:
   README.md
   changelog.md
-
-
 
 flag debug
   description:  dump intermediate Core files
   default:      False
   manual:       True
-
-
 
 library
   build-depends: base                   >= 4.7      && < 4.9
@@ -65,6 +59,7 @@ library
                , strict                 == 0.4.0.1
                , optparse-simple
                , optparse-applicative
+               , inline-c
   exposed-modules:
     BioInf.GenussFold
     BioInf.GenussFold.PKN
@@ -86,8 +81,10 @@ library
                     , TypeFamilies
                     , TypeOperators
                     , FlexibleInstances
+  hs-source-dirs:
+   .
   ghc-options:
-    -O2
+    -O0
     -funbox-strict-fields
     -fcpr-off
     -fno-liberate-case
@@ -97,8 +94,6 @@ library
       -ddump-simpl
       -ddump-stg
       -dsuppress-all
-
-
 
 -- Wrapper for the library
 
@@ -110,6 +105,7 @@ executable GenussFold
                , GenussFold
                , optparse-simple
                , optparse-applicative
+               , inline-c
   hs-source-dirs:
     src
   default-language:
@@ -119,15 +115,14 @@ executable GenussFold
   main-is:
     GenussFold.hs
   ghc-options:
-    -O2
+    -O0
     -funbox-strict-fields
-
 
 executable KHP_Nussinov
   build-depends: base
                , cmdargs          >= 0.10   && < 0.11
                , FormalGrammars
-               , ViennaRNA-bindings
+--               , ViennaRNA-bindings
                , GenussFold
                , optparse-simple
                , optparse-applicative
@@ -140,7 +135,7 @@ executable KHP_Nussinov
   main-is:
     KHP_Nussinov.hs
   ghc-options:
-    -O2
+    -O0
     -funbox-strict-fields
 
 test-suite properties-fast
@@ -149,7 +144,7 @@ test-suite properties-fast
   main-is:
     properties-fast.hs
   ghc-options:
-    -threaded -rtsopts -with-rtsopts=-N -O2 -funbox-strict-fields
+    -threaded -rtsopts -with-rtsopts=-N -O0 -funbox-strict-fields
   hs-source-dirs:
     tests
   default-language:

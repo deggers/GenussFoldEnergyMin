@@ -4,6 +4,8 @@
 
 module BioInf.GenussFold.ViennaRNA where
 
+import           Debug.Trace
+
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.ST
@@ -27,89 +29,58 @@ import           FormalLanguage
 import           BioInf.GenussFold.IndexToIndexParser
 import           BioInf.GenussFold.IdxStrng
 import qualified BioInf.ViennaRNA.Bindings.Inline as V
---import           BioInf.ViennaRNA.Bindings.FFI.Fold as V
+import qualified Data.ByteString.Char8 as BS
+import           GHC.Float
 
--- | Define signature and grammar
-[formalLanguage|
-Verbose
-
-Grammar: EnergyMin
-N: a_Struct
-N: b_Closed
-N: c_M
-N: d_M1
-
-T: nt
-T: regionCtx
-
-S: a_Struct
-
-a_Struct -> unpaired     <<< nt a_Struct
-a_Struct -> juxtaposed   <<< b_Closed a_Struct
-a_Struct -> nil          <<< e
-
-b_Closed -> hairpin      <<< regionCtx
-b_Closed -> interior     <<< regionCtx b_Closed regionCtx
-b_Closed -> mlr          <<< nt c_M d_M1 nt
-
-c_M -> mcm_1             <<< regionCtx b_Closed
-c_M -> mcm_2             <<< c_M b_Closed
-c_M -> mcm_3             <<< c_M nt
-
-d_M1 -> ocm_1            <<< b_Closed
-d_M1 -> ocm_2            <<< d_M1 nt
-
-//
-Emit: EnergyMin
-|]
-
--- @TODO  hairpin -> regionCtx 5 ... 32  3 empty 2 paired to ensure only semtical correct parses
+import           BioInf.GenussFold.Grammars.ViennaRNA
 
 -- Use domain-specific language
 type Pos = Int
 type Nt = Char
 type NtPos = (Nt, Pos)
-type MaybeNtPos = (Maybe Nt, Pos)
 type Basepair = (Nt, Nt)
-type Energy = Double
+type Energy = Int
 type IndexRegionParser = (Pos,Pos)
-ignore      = 100123.00
-makeAlgebraProduct ''SigEnergyMin
+ignore      = 100123
 
-interiorLoopEnergy ::  Basepair -> Basepair -> Double
-interiorLoopEnergy ('C','G') ('G','U') = -1.40
-interiorLoopEnergy ('G','U') ('C','G') = -2.50
-interiorLoopEnergy ('C','G') ('U','A') = -2.10
-interiorLoopEnergy ('U','A') ('U','A') = -0.90
-interiorLoopEnergy ('C','G') ('A','U') = -2.10
-interiorLoopEnergy ('A','U') ('U','A') = -1.10
-interiorLoopEnergy ('U','A') ('A','U') = -1.30
-interiorLoopEnergy ('U','A') ('C','G') = -2.40
-interiorLoopEnergy ('C','G') ('C','G') = -3.30
-interiorLoopEnergy ('C','G') ('U','G') = -2.10
-interiorLoopEnergy ('U','G') ('A','U') = -1.00
-interiorLoopEnergy ('A','U') ('A','U') = -0.90
-interiorLoopEnergy ('G','C') ('A','U') = -2.40
-interiorLoopEnergy ('A','U') ('G','C') = -2.10
-interiorLoopEnergy _ _ = -1.51
+interiorLoopEnergy ::  Basepair -> Basepair -> Energy
+interiorLoopEnergy ('C','G') ('G','U') = -140
+interiorLoopEnergy ('G','U') ('C','G') = -250
+interiorLoopEnergy ('C','G') ('U','A') = -210
+interiorLoopEnergy ('U','A') ('U','A') = -090
+interiorLoopEnergy ('C','G') ('A','U') = -210
+interiorLoopEnergy ('A','U') ('U','A') = -110
+interiorLoopEnergy ('U','A') ('A','U') = -130
+interiorLoopEnergy ('U','A') ('C','G') = -240
+interiorLoopEnergy ('C','G') ('C','G') = -330
+interiorLoopEnergy ('C','G') ('U','G') = -210
+interiorLoopEnergy ('U','G') ('A','U') = -100
+interiorLoopEnergy ('A','U') ('A','U') = -090
+interiorLoopEnergy ('G','C') ('A','U') = -240
+interiorLoopEnergy ('A','U') ('G','C') = -210
+interiorLoopEnergy _ _ = -151
 
-energyMinAlg :: Monad m => VU.Vector Char ->  SigEnergyMin m Double Double NtPos (Pos,Pos)
+energyMinAlg :: Monad m => BS.ByteString ->  SigEnergyMin m Energy Energy NtPos (Pos,Pos)
 energyMinAlg input = SigEnergyMin
-  { nil  = \ () -> 0.00
-  , unpaired = \ _ ss -> ss + 1.00
-  , juxtaposed   = \ x y -> x + y
-
-  , hairpin  = \ (left, subtract 1 -> right) -> if
-             |  (right-left) > 3 && pairs (input VU.! left) (input VU.! right) -> 4.5 -- @TODO to be fixed
+  { nil  = \ () -> 0
+  , unpaired = \ _ ss -> ss
+  , juxtaposed   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
+  , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
+             | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
+               -- -> V.hairpinP input iPos jPos
+               -- -> 530
+               -> traceShow ("HP" ++ show (iPos,jPos, V.hairpinP input iPos jPos)) $ V.hairpinP input iPos jPos
              | otherwise -> ignore
 
-    -- @TODO remove constraints of allowing only stacks no bulges
-  , interior = \ (aPos,bPos) closed (subtract 1 -> cPos, subtract 1 -> dPos) -> if
-             | (bPos-aPos == 1) && (dPos-cPos == 1) && pairs (input VU.! aPos) (input VU.! dPos) && pairs (input VU.! bPos) (input VU.! cPos) ->
-                 closed + interiorLoopEnergy (input VU.! aPos, input VU.! dPos) (input VU.! bPos, input VU.! cPos)
+  , interior = \ (iPos, jPos) closed (subtract 1 -> kPos, subtract 1 -> lPos) -> let e = evalIntLoop input iPos jPos kPos lPos in if
+             | pairs (BS.index input iPos) (BS.index input lPos)
+               && pairs (BS.index input jPos) (BS.index input kPos)
+              -- -> closed - 330
+              -- -> closed - evalIntLoop input iPos jPos kPos lPos
+              -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) closed - e -- evalIntLoop input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
              | otherwise -> ignore
 
-  , mlr      = \ (a,aPos) m m1 (d,dPos) -> if
+  , mlr      = \ (a,iPos) m m1 (d,jPos) -> if
              | pairs a d -> m + m1 + 3
              | otherwise   -> ignore
 
@@ -120,34 +91,17 @@ energyMinAlg input = SigEnergyMin
   , ocm_2 = \ closed _ -> closed
   , h    =   SM.foldl' min (ignore)
   }
-{-# INLINE energyMin #-}
+{-# INLINE energyMinAlg #-}
 
-prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
-prettyStructCharShort = SigEnergyMin
-  { nil = \ () ->  [""]
-  , unpaired = \ _ [ss] -> ["." ++ ss]
-  , juxtaposed = \ [x] [y] -> [x ++ y]
-  , hairpin = \  (left,subtract 1 -> right)  -> ["(" ++ replicate (right-left-1) '.' ++ ")"]
-  , interior = \ _ [closed] _ -> ["(" ++ closed ++ ")"] -- @TODO only valid as long no bulges are processed
-  , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
-  , mcm_1 = \ (left,  right) [closed] -> [replicate (right-left) '.' ++ closed ]
-  , mcm_2 = \ [m] [closed] -> [m ++ closed ]
-  , mcm_3 = \ [m] _ -> [m ++ "."]
-  , ocm_1 = \ [m1] -> [m1]
-  , ocm_2 = \ [x] _ -> [x ++ "."]
-  , h   = SM.toList
-  }
-{-# INLINE prettyStructCharShort #-}
-
-prettyPaths :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
-prettyPaths = SigEnergyMin
+prettyPaths :: Monad m => BS.ByteString -> SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
+prettyPaths input = SigEnergyMin
   { nil = \ () ->  [""]
   , unpaired = \  _ [ss] -> [ss]
   , juxtaposed = \ [x] [y] -> [x ++ y]
-  , hairpin = \  (left, (-1 +) -> right)  ->
-      ["Hairpin Loop (" ++ show left ++ "..." ++ show right ++ ") "]
-  , interior = \ (a,b) [closed] (subtract 1 -> c, subtract 1 -> d) ->
-      ["Interior loop (" ++ show a ++ "," ++ show d ++ ") (" ++ show b ++ "," ++ show c ++  "), " ++ closed]
+  , hairpin = \  (iPos, subtract 1 -> jPos)  ->
+      ["Hairpin Loop (" ++ show iPos ++ "," ++ show jPos ++ "): " ++ show (V.hairpinP input iPos jPos)]
+  , interior = \ (i,j) [closed] (subtract 1 -> k, subtract 1 -> l) ->
+      ["Interior loop (" ++ show i ++ "," ++ show l ++ ") (" ++ show j ++ "," ++ show k ++  "):" ++ show (evalIntLoop input i j k l) ++ " " ++ closed]
   , mlr = \ a [m] [m1] b ->
       ["Multi (" ++ show a ++ "," ++ show b ++ ") m:" ++ m ++ " m1: " ++ m1 ++ " Multi (?,?) "]
   , mcm_1 = \ _ [closed] -> [closed]
@@ -159,41 +113,57 @@ prettyPaths = SigEnergyMin
   }
 {-# INLINE prettyPaths #-}
 
+prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
+prettyStructCharShort = SigEnergyMin
+  { nil = \ () ->  [""]
+  , unpaired = \ _ [ss] -> ["." ++ ss]
+  , juxtaposed = \ [x] [y] -> [x ++ y]
+  , hairpin = \  (iPos,subtract 1 -> jPos)  -> ["(" ++ replicate (jPos-iPos-1) '.' ++ ")"]
+  , interior = \ _ [closed] _ -> ["(" ++ closed ++ ")"] -- @TODO only valid as long no bulges are processed
+  , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
+  , mcm_1 = \ (iPos,  jPos) [closed] -> [replicate (jPos-iPos) '.' ++ closed ]
+  , mcm_2 = \ [m] [closed] -> [m ++ closed ]
+  , mcm_3 = \ [m] _ -> [m ++ "."]
+  , ocm_1 = \ [m1] -> [m1]
+  , ocm_2 = \ [x] _ -> [x ++ "."]
+  , h   = SM.toList
+  }
+{-# INLINE prettyStructCharShort #-}
 
-
-energyMin :: Int -> String -> (Double,[[String]])
+energyMin :: Int -> String -> (Energy,[[String]])
 energyMin k inp = (z, take k bs) where
-  i = VU.fromList . Prelude.map toUpper $ inp
-  !(Z:.a:.b:.e:.f) = runInsideForward i
+  i = BS.pack . Prelude.map toUpper $ inp
+  iv = VU.fromList . Prelude.map toUpper $ inp
+  !(Z:.a:.b:.e:.f) = runInsideForward i iv
   z = unId $ axiom a -- gets the value from the table
-  bs = runInsideBacktrack i (Z:.a:.b:.e:.f)
-{-# NOINLINE energyMinAlg #-}
+  bs = runInsideBacktrack i iv (Z:.a:.b:.e:.f)
+{-# NOINLINE energyMin #-}
 
-type X = ITbl Id Unboxed Subword Double
+type X = ITbl Id Unboxed Subword Energy
 -- PK will need subwords over subwords
 
---runInsideForward :: VU.Vector Char -> Z:.X
-runInsideForward i = mutateTablesWithHints (Proxy :: Proxy CFG)
+runInsideForward :: BS.ByteString -> VU.Vector Char -> Z:.X:.X:.X:.X
+runInsideForward i iv = mutateTablesWithHints (Proxy :: Proxy CFG)
                    $ gEnergyMin (energyMinAlg i)
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (166999.0) []))
-                        (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (266999.0) []))
-                        (ITbl 0 2 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (366999.0) []))
-                        (ITbl 0 3 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (466999.0) []))
-                        (ntPos i)
-                        (idxStrng1 1 31 i)
-  where n = VU.length i
+                        (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (166999) []))
+                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (266999) []))
+                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (366999) []))
+                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (466999) []))
+                        (ntPos iv )
+                        (idxStrng1 1 31 iv)
+  where n = BS.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: VU.Vector Char -> Z:.X:.X:.X:.X -> [[String]] -- for the non-terminals
-runInsideBacktrack i (Z:.a:.b:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
-  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyStructCharShort)
---  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths)
+runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Z:.X:.X:.X:.X -> [[String]] -- for the non-terminals
+runInsideBacktrack i iv  (Z:.a:.b:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
+--  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyStructCharShort)
+  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths i)
                           (toBacktrack a (undefined :: Id a -> Id a))
                           (toBacktrack b (undefined :: Id b -> Id b))
                           (toBacktrack e (undefined :: Id e -> Id e))
                           (toBacktrack f (undefined :: Id f -> Id f))
-                          (ntPos i)
-                          (idxStrng 1 31 i)
+                          (ntPos iv)
+                          (idxStrng 1 31 iv)
 {-# NoInline runInsideBacktrack #-}
 
 pairs :: Char -> Char -> Bool
@@ -212,3 +182,7 @@ ntPos :: VG.Vector v x => v x -> Chr (x,Int) x
 ntPos xs = Chr f xs where
   {-# Inline [0] f #-}
   f xs k = (VG.unsafeIndex xs k, k)
+
+-- | Not sure yet
+evalIntLoop :: BS.ByteString -> Int -> Int -> Int -> Int -> Energy
+evalIntLoop input i j k l = V.intLoopP input i k j l
