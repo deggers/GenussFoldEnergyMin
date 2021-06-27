@@ -67,17 +67,15 @@ energyMinAlg input = SigEnergyMin
   , juxtaposed   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
              | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
-               -- -> V.hairpinP input iPos jPos
-               -- -> 530
-               -> traceShow ("HP" ++ show (iPos,jPos, V.hairpinP input iPos jPos)) $ V.hairpinP input iPos jPos
+               -> evalHP input iPos jPos
+             --  -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
              | otherwise -> ignore
 
-  , interior = \ (iPos, jPos) closed (subtract 1 -> kPos, subtract 1 -> lPos) -> let e = evalIntLoop input iPos jPos kPos lPos in if
-             | pairs (BS.index input iPos) (BS.index input lPos)
-               && pairs (BS.index input jPos) (BS.index input kPos)
-              -- -> closed - 330
-              -- -> closed - evalIntLoop input iPos jPos kPos lPos
-              -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) closed - e -- evalIntLoop input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
+  , interior = \ (iPos, kPos) closed (subtract 1 -> lPos, subtract 1 -> jPos) -> let e = evalIP input iPos jPos kPos lPos in if
+             | pairs (BS.index input iPos) (BS.index input jPos)
+               && pairs (BS.index input kPos) (BS.index input lPos)
+              -- -> closed - evalIP input iPos jPos kPos lPos
+              -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) $ subtract e closed -- evalIP input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
              | otherwise -> ignore
 
   , mlr      = \ (a,iPos) m m1 (d,jPos) -> if
@@ -100,8 +98,8 @@ prettyPaths input = SigEnergyMin
   , juxtaposed = \ [x] [y] -> [x ++ y]
   , hairpin = \  (iPos, subtract 1 -> jPos)  ->
       ["Hairpin Loop (" ++ show iPos ++ "," ++ show jPos ++ "): " ++ show (V.hairpinP input iPos jPos)]
-  , interior = \ (i,j) [closed] (subtract 1 -> k, subtract 1 -> l) ->
-      ["Interior loop (" ++ show i ++ "," ++ show l ++ ") (" ++ show j ++ "," ++ show k ++  "):" ++ show (evalIntLoop input i j k l) ++ " " ++ closed]
+  , interior = \ (i,k) [closed] (subtract 1 -> l, subtract 1 -> j) ->
+      ["Interior loop (" ++ show i ++ "," ++ show j ++ ") (" ++ show k ++ "," ++ show l ++  "):" ++ show (evalIP input i j k l) ++ " " ++ closed]
   , mlr = \ a [m] [m1] b ->
       ["Multi (" ++ show a ++ "," ++ show b ++ ") m:" ++ m ++ " m1: " ++ m1 ++ " Multi (?,?) "]
   , mcm_1 = \ _ [closed] -> [closed]
@@ -183,6 +181,9 @@ ntPos xs = Chr f xs where
   {-# Inline [0] f #-}
   f xs k = (VG.unsafeIndex xs k, k)
 
--- | Not sure yet
-evalIntLoop :: BS.ByteString -> Int -> Int -> Int -> Int -> Energy
-evalIntLoop input i j k l = V.intLoopP input i k j l
+-- | Until i figure out how to fix the addition of 1 in the lib
+evalIP :: BS.ByteString -> Int -> Int -> Int -> Int -> Energy
+evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopP input i j k l
+
+evalHP :: BS.ByteString -> Int -> Int -> Energy
+evalHP input ((+1) -> i) ((+1) -> j) = V.hairpinP input i j
