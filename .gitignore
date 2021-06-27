@@ -3,3 +3,5 @@ otherdeps
 .stack-work
 *.org
 dist-newstyle
+.mrconfig
+shell.nix
