@@ -43,23 +43,6 @@ type Energy = Int
 type IndexRegionParser = (Pos,Pos)
 ignore      = 100123
 
-interiorLoopEnergy ::  Basepair -> Basepair -> Energy
-interiorLoopEnergy ('C','G') ('G','U') = -140
-interiorLoopEnergy ('G','U') ('C','G') = -250
-interiorLoopEnergy ('C','G') ('U','A') = -210
-interiorLoopEnergy ('U','A') ('U','A') = -090
-interiorLoopEnergy ('C','G') ('A','U') = -210
-interiorLoopEnergy ('A','U') ('U','A') = -110
-interiorLoopEnergy ('U','A') ('A','U') = -130
-interiorLoopEnergy ('U','A') ('C','G') = -240
-interiorLoopEnergy ('C','G') ('C','G') = -330
-interiorLoopEnergy ('C','G') ('U','G') = -210
-interiorLoopEnergy ('U','G') ('A','U') = -100
-interiorLoopEnergy ('A','U') ('A','U') = -090
-interiorLoopEnergy ('G','C') ('A','U') = -240
-interiorLoopEnergy ('A','U') ('G','C') = -210
-interiorLoopEnergy _ _ = -151
-
 energyMinAlg :: Monad m => BS.ByteString ->  SigEnergyMin m Energy Energy NtPos (Pos,Pos)
 energyMinAlg input = SigEnergyMin
   { nil  = \ () -> 0
@@ -68,18 +51,18 @@ energyMinAlg input = SigEnergyMin
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
              | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
                -> evalHP input iPos jPos
-             --  -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
+               -- -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
              | otherwise -> ignore
 
   , interior = \ (iPos, kPos) closed (subtract 1 -> lPos, subtract 1 -> jPos) -> let e = evalIP input iPos jPos kPos lPos in if
              | pairs (BS.index input iPos) (BS.index input jPos)
                && pairs (BS.index input kPos) (BS.index input lPos)
-              -- -> closed - evalIP input iPos jPos kPos lPos
-              -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) $ subtract e closed -- evalIP input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
+               -> closed + evalIP input iPos jPos kPos lPos
+               -- -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) $ e + closed -- evalIP input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
              | otherwise -> ignore
 
   , mlr      = \ (a,iPos) m m1 (d,jPos) -> if
-             | pairs a d -> m + m1 + 3
+             | pairs a d -> m + m1 + 290
              | otherwise   -> ignore
 
   , mcm_1 = \ _ closed -> closed
@@ -99,7 +82,7 @@ prettyPaths input = SigEnergyMin
   , hairpin = \  (iPos, subtract 1 -> jPos)  ->
       ["Hairpin Loop (" ++ show iPos ++ "," ++ show jPos ++ "): " ++ show (V.hairpinP input iPos jPos)]
   , interior = \ (i,k) [closed] (subtract 1 -> l, subtract 1 -> j) ->
-      ["Interior loop (" ++ show i ++ "," ++ show j ++ ") (" ++ show k ++ "," ++ show l ++  "):" ++ show (evalIP input i j k l) ++ " " ++ closed]
+      ["Interior loop (" ++ show i ++ "," ++ show k ++ ") (" ++ show l ++ "," ++ show j ++  "):" ++ show (evalIP input i j k l) ++ " " ++ closed]
   , mlr = \ a [m] [m1] b ->
       ["Multi (" ++ show a ++ "," ++ show b ++ ") m:" ++ m ++ " m1: " ++ m1 ++ " Multi (?,?) "]
   , mcm_1 = \ _ [closed] -> [closed]
@@ -111,13 +94,14 @@ prettyPaths input = SigEnergyMin
   }
 {-# INLINE prettyPaths #-}
 
-prettyStructCharShort :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
-prettyStructCharShort = SigEnergyMin
+pretty :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
+pretty = SigEnergyMin
   { nil = \ () ->  [""]
   , unpaired = \ _ [ss] -> ["." ++ ss]
   , juxtaposed = \ [x] [y] -> [x ++ y]
   , hairpin = \  (iPos,subtract 1 -> jPos)  -> ["(" ++ replicate (jPos-iPos-1) '.' ++ ")"]
-  , interior = \ _ [closed] _ -> ["(" ++ closed ++ ")"] -- @TODO only valid as long no bulges are processed
+  , interior = \ (iPos, kPos) [closed] (subtract 1 -> lPos, subtract 1 -> jPos)
+    -> ["(" ++ replicate (kPos-iPos-1) '.' ++ closed ++ replicate (jPos-lPos-1) '.' ++ ")"]
   , mlr = \ _ [m] [m1] _ -> ["(" ++ m ++ m1 ++ ")"]
   , mcm_1 = \ (iPos,  jPos) [closed] -> [replicate (jPos-iPos) '.' ++ closed ]
   , mcm_2 = \ [m] [closed] -> [m ++ closed ]
@@ -126,7 +110,7 @@ prettyStructCharShort = SigEnergyMin
   , ocm_2 = \ [x] _ -> [x ++ "."]
   , h   = SM.toList
   }
-{-# INLINE prettyStructCharShort #-}
+{-# INLINE pretty #-}
 
 energyMin :: Int -> String -> (Energy,[[String]])
 energyMin k inp = (z, take k bs) where
@@ -154,8 +138,8 @@ runInsideForward i iv = mutateTablesWithHints (Proxy :: Proxy CFG)
 
 runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Z:.X:.X:.X:.X -> [[String]] -- for the non-terminals
 runInsideBacktrack i iv  (Z:.a:.b:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
---  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyStructCharShort)
-  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths i)
+  where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| pretty)
+  -- where !(Z:.g:.h:.l:.m) = gEnergyMin (energyMinAlg i <|| prettyPaths i)
                           (toBacktrack a (undefined :: Id a -> Id a))
                           (toBacktrack b (undefined :: Id b -> Id b))
                           (toBacktrack e (undefined :: Id e -> Id e))
@@ -187,3 +171,34 @@ evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopP inpu
 
 evalHP :: BS.ByteString -> Int -> Int -> Energy
 evalHP input ((+1) -> i) ((+1) -> j) = V.hairpinP input i j
+
+evalMB :: BS.ByteString -> Int -> Int -> Energy
+evalMB input ((+1) -> i) ((+1) -> j) = V.mbLoopP input i j
+
+{--
+Look at:
+https://hackage.haskell.org/package/RNAFold-1.99.3.4/docs/src/BioInf-ViennaRNA-Fold.html
+
+Teststructures :
+
+Multiloop Structure
+  External loop                           :  -110
+  Interior loop (  2, 41) CG; (  3, 40) CG:  -330
+  Interior loop (  3, 40) CG; (  4, 39) CG:  -330
+  Interior loop (  4, 39) CG; (  5, 38) CG:  -330
+  Interior loop (  7, 19) CG; (  8, 18) CG:  -330
+  Interior loop (  8, 18) CG; (  9, 17) CG:  -330
+  Interior loop (  9, 17) CG; ( 10, 16) CG:  -330
+  Hairpin  loop ( 10, 16) CG              :   420
+  Interior loop ( 22, 36) CG; ( 23, 35) CG:  -330
+  Interior loop ( 23, 35) CG; ( 24, 34) CG:  -330
+  Interior loop ( 24, 34) CG; ( 25, 33) CG:  -330
+  Interior loop ( 25, 33) CG; ( 26, 32) CG:  -330
+  Hairpin  loop ( 26, 32) CG              :   420
+  Multi    loop (  5, 38) CG              :   290
+  ACCCCACCCCAAAAAGGGGAACCCCCAAAAAGGGGGAGGGGA
+  .((((.((((.....))))..(((((.....))))).)))). (-22.80)
+
+:l BioInf/GenussFold/ViennaRNA.hs
+let seq = BS.pack "ACCCCACCCCAAAAAGGGGAACCCCCAAAAAGGGGGAGGGGA"
+-}
