@@ -17,18 +17,18 @@ N: b_Closed
 N: c_M
 N: d_M1
 N: e_PKN
-N: <X,2>
-N: <Y,2>
+N: <f_X,2>
+N: <g_Y,2>
 
 T: nt
 T: regionCtx
 
 S: a_Struct
 
-a_Struct -> unpaired     <<< nt a_Struct
-a_Struct -> juxtaposed   <<< b_Closed a_Struct
-a_Struct -> pkn          <<< b_Closed e_PKN
-a_Struct -> nil          <<< e
+a_Struct -> nil <<< e
+a_Struct -> unp <<< nt a_Struct
+a_Struct -> jux <<< b_Closed a_Struct
+a_Struct -> pkn <<< e_PKN a_Struct
 
 b_Closed -> hairpin      <<< regionCtx
 b_Closed -> interior     <<< regionCtx b_Closed regionCtx
@@ -41,13 +41,13 @@ c_M -> mcm_3             <<< c_M nt
 d_M1 -> ocm_1            <<< b_Closed
 d_M1 -> ocm_2            <<< d_M1 nt
 
-e_PKN -> hpk             <<< X Y X Y
+e_PKN -> hpk             <<< f_X g_Y f_X g_Y
 
-<X,X> -> pk1 <<< [-,nt] [-,b_Closed] <X,X> [nt,-] [b_Closed,-]
-<X,X> -> pk1b <<< [nt,-] [-,nt] [b_Closed,-] [-,b_Closed]
+<f_X,f_X> -> pk1 <<< [-,regionCtx] [-,a_Struct] <f_X,f_X> [regionCtx,-] [a_Struct,-]
+<f_X,f_X> -> pk1b <<< [regionCtx,-] [-,regionCtx] [a_Struct,-] [-,a_Struct]
 
-<Y,Y> -> pk2 <<< [-,nt] [-,b_Closed] <Y,Y> [nt,-] [b_Closed,-]
-<Y,Y> -> pk2b <<< [nt,-] [-,nt] [b_Closed,-] [-,b_Closed]
+<g_Y,g_Y> -> pk2 <<< [-,regionCtx] [-,a_Struct] <g_Y,g_Y> [regionCtx,-] [a_Struct,-]
+<g_Y,g_Y> -> pk2b <<< [regionCtx,-] [-,regionCtx] [a_Struct,-] [-,a_Struct]
 
 //
 Emit: EnergyMin
