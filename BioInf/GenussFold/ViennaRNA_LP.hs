@@ -67,17 +67,20 @@ energyMinAlg input = SigEnergyMin
   , pkn = \ x y -> x + y
   , hpk = \ () () x y
     -> let m = maximum [x,y] in if m < 0 then x + y -500 else ignore -- @TODO FIX Penalty
-   , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
-       | True -- pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-         -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
+    -- Problematic parses (0,1,0,4) -> Right Region spans over left region but shouldnt intersect
+    -- Thats why restriction on k <= l to ensure lo overlapping and taking openEnding of regions into account
+   , pk1 = \ (Z:.():.(subtract 1 -> lPos,subtract 1 -> jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
+       | (kPos <= lPos) -- && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+         -- -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
+         -> m + n + y - 330
        | otherwise -> ignore
   , pk1b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
       | pairs i j
       --  -> s1 + s2 - 330
         -> traceShow ("pk1b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
       | otherwise -> ignore -- @TODO Fix simple +1
-  , pk2 = \ (Z:.():.(subtract 0 -> lPos,subtract 0 -> jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
-      | True -- pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+  , pk2 = \ (Z:.():.(subtract 1 -> lPos,subtract 1 -> jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
+      | (kPos <= lPos) -- pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
           -> m + n + y - 330
          -- -> traceShow ("pk2" ++ show (iPos,jPos,kPos,lPos)) $ m + n + y - 330
       | otherwise -> ignore
