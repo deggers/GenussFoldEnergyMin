@@ -89,7 +89,7 @@ energyMinAlg input = SigEnergyMin
         -- ->  traceShow ("pk2b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
         ->  s1 + s2 - 330
       | otherwise -> ignore -- @TODO Fix simple +1
-  , unp = \ _ ss -> ss
+  , unp = \ c ss -> traceShow ("unp" ++ show(c)) $ ss
   , jux   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
              | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
