@@ -157,11 +157,11 @@ pretty = SigEnergyMin
   , pk1 = \ _ (Z:.():.[t2]) [x1,x2] _ (Z:.[t1]:.()) -- @TODO handle interior
     -> [ x1 ++ "{" ++ t1 , "}" ++  t2 ++ x2]
   , pk1b = \ _ _ (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["{" ++ t1 , "}" ++ t2]
+    -> ["{'" ++ t1 , "'}" ++ t2]
   , pk2 = \ _ (Z:.():.[s2]) [x1,x2] _ (Z:.[s1]:.()) -- @TODO handle interior
     -> [ x1 ++ "[" ++ s1 , "]" ++  s2 ++ x2]
   , pk2b = \ _ _ (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["[" ++ t1 , "]" ++ t2]
+    -> ["['" ++ t1 , "']" ++ t2]
   , unp = \ _ [ss] -> ["." ++ ss]
   , jux = \ [x] [y] -> [x ++ y]
   , hairpin = \  (iPos,subtract 1 -> jPos)  -> ["(" ++ replicate (jPos-iPos-1) '.' ++ ")"]
