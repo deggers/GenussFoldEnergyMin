@@ -44,10 +44,10 @@ d_M1 -> ocm_2            <<< d_M1 nt
 e_PKN -> hpk             <<< f_X g_Y f_X g_Y
 
 <f_X,f_X> -> pk1 <<< [-,regionCtx] [-,a_Struct] <f_X,f_X> [regionCtx,-] [a_Struct,-]
-<f_X,f_X> -> pk1b <<< [regionCtx,-] [-,regionCtx] [a_Struct,-] [-,a_Struct]
+<f_X,f_X> -> pk1b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
 
 <g_Y,g_Y> -> pk2 <<< [-,regionCtx] [-,a_Struct] <g_Y,g_Y> [regionCtx,-] [a_Struct,-]
-<g_Y,g_Y> -> pk2b <<< [regionCtx,-] [-,regionCtx] [a_Struct,-] [-,a_Struct]
+<g_Y,g_Y> -> pk2b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
 
 //
 Emit: EnergyMin

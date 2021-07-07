@@ -54,4 +54,13 @@ instance
 
 deriving instance (Show i, Show x, Show (Elm ls i)) => Show (Elm (ls :!: IdxStrng v x) i)
 
-type instance TermArg (TermSymbol a (IdxStrng v x)) = TermArg a :. v x
+-- type instance TermArg (TermSymbol a (IdxStrng v x)) = TermArg a :. v x
+type instance TermArg (TermSymbol a (IdxStrng v x)) = TermArg a :. (Int,Int)
+
+-- Hinterher Variabl
+instance TermStaticVar (IdxStrng v x) Subword where
+  termStaticVar _ (IStatic   d) _ = IVariable d
+  termStaticVar _ (IVariable d) _ = IVariable d
+  termStreamIndex _ _ (Subword (i:.j)) = subword i j --  @TODO minSize handling!
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}

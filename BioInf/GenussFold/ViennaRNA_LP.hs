@@ -43,24 +43,49 @@ type Energy = Int
 type IndexRegionParser = (Pos,Pos)
 ignore      = 100123
 
+-- Used as energies for the psuedoknot extension
+interiorLoopEnergy ::  Basepair -> Basepair -> Energy
+interiorLoopEnergy ('C','G') ('G','U') = -140
+interiorLoopEnergy ('G','U') ('C','G') = -250
+interiorLoopEnergy ('C','G') ('U','A') = -210
+interiorLoopEnergy ('U','A') ('U','A') = -090
+interiorLoopEnergy ('C','G') ('A','U') = -210
+interiorLoopEnergy ('A','U') ('U','A') = -110
+interiorLoopEnergy ('U','A') ('A','U') = -130
+interiorLoopEnergy ('U','A') ('C','G') = -240
+interiorLoopEnergy ('C','G') ('C','G') = -330
+interiorLoopEnergy ('C','G') ('U','G') = -210
+interiorLoopEnergy ('U','G') ('A','U') = -100
+interiorLoopEnergy ('A','U') ('A','U') = -090
+interiorLoopEnergy ('G','C') ('A','U') = -240
+interiorLoopEnergy ('A','U') ('G','C') = -210
+interiorLoopEnergy _ _ = -151
+
 energyMinAlg :: Monad m => BS.ByteString ->  SigEnergyMin m Energy Energy NtPos (Pos,Pos)
 energyMinAlg input = SigEnergyMin
   { nil  = \ () -> 0
   , pkn = \ x y -> x + y
   , hpk = \ () () x y
-    -> let m = minimum [x,y] in if m >= 1 then x + y - 500 else ignore -- @TODO FIX Penalty
-  , pk1 = \ (Z:.():.(iPos,kPos)) (Z:.():.m) y (Z:.(subtract 1 -> lPos, subtract 1 -> jPos):.()) (Z:.n:.()) -> if
-      | pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-        -> m + n + y + evalIP input iPos jPos kPos lPos
+    -> let m = maximum [x,y] in if m < 0 then x + y -500 else ignore -- @TODO FIX Penalty
+   , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
+       | True -- pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+         -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
+       | otherwise -> ignore
+  , pk1b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
+      | pairs i j
+      --  -> s1 + s2 - 330
+        -> traceShow ("pk1b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
+      | otherwise -> ignore -- @TODO Fix simple +1
+  , pk2 = \ (Z:.():.(subtract 0 -> lPos,subtract 0 -> jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
+      | True -- pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+          -> m + n + y - 330
+         -- -> traceShow ("pk2" ++ show (iPos,jPos,kPos,lPos)) $ m + n + y - 330
       | otherwise -> ignore
-  , pk1b = \ (Z:.(iPos,kPos):.()) (Z:.():.(subtract 1 -> lPos, subtract 1 -> jPos)) (Z:.s1:.()) (Z:.():.s2)
-    -> if pairs (BS.index input iPos) (BS.index input jPos)  then s1 + s2 + 1 else ignore -- @TODO Fix simple +1
-  , pk2 = \ (Z:.():.(iPos,kPos)) (Z:.():.m) y (Z:.(subtract 1 -> lPos, subtract 1 -> jPos):.()) (Z:.n:.()) -> if
-      | pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-        -> m + n + y + evalIP input iPos jPos kPos lPos
-      | otherwise -> ignore
-  , pk2b = \ (Z:.(iPos,kPos):.()) (Z:.():.(subtract 1 -> lPos, subtract 1 -> jPos)) (Z:.s1:.()) (Z:.():.s2)
-    -> if pairs (BS.index input iPos) (BS.index input jPos)  then s1 + s2 + 1 else ignore -- @TODO Fix simple +1
+  , pk2b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
+      | pairs i j
+        -- ->  traceShow ("pk2b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
+        ->  s1 + s2 - 330
+      | otherwise -> ignore -- @TODO Fix simple +1
   , unp = \ _ ss -> ss
   , jux   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
@@ -191,14 +216,15 @@ runInsideBacktrack i iv  (Z:.a:.b:.e:.f:.j:.k:.q) = unId $ axiom g -- Axiom from
                           (idxStrng 1 31 iv)
 {-# NoInline runInsideBacktrack #-}
 
+-- @TODO remember to activate AU and GU base pairs!
 pairs :: Char -> Char -> Bool
 pairs !c !d
   =  c=='A' && d=='U'
   || c=='C' && d=='G'
   || c=='G' && d=='C'
-  || c=='G' && d=='U'
+--  || c=='G' && d=='U'
   || c=='U' && d=='A'
-  || c=='U' && d=='G'
+--  || c=='U' && d=='G'
 {-# INLINE pairs #-}
 
 
