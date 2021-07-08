@@ -67,33 +67,34 @@ energyMinAlg input = SigEnergyMin
   , pkn = \ x y -> x + y
   , hpk = \ () () x y
     -> let m = maximum [x,y] in if m < 0 then x + y -500 else ignore -- @TODO FIX Penalty
-    -- Problematic parses (0,1,0,4) -> Right Region spans over left region but shouldnt intersect
-    -- Thats why restriction on k <= l to ensure lo overlapping and taking openEnding of regions into account
-   , pk1 = \ (Z:.():.(subtract 1 -> lPos,subtract 1 -> jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
-       | (kPos <= lPos) -- && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-         -- -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
+    -- check for indicis again because of extension .. draw as picture to visualize it because different to "normal stacks"
+    -- nicht von kleiner zu größer
+   , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
+       -- interiorLoops instead of stacking in LP+
+       | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+         -- -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - evalIP input iPos kPos lPos jPos
          -> m + n + y - 330
        | otherwise -> ignore
+  , pk2 = \ (Z:.():.(lPos,subtract 1 -> jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
+      | (minimum [lPos,jPos,iPos,kPos] >= 0) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+         -> m + n + y - 330
+        -- -> traceShow ("pk2" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
+      | otherwise -> ignore
   , pk1b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
       | pairs i j
-      --  -> s1 + s2 - 330
-        -> traceShow ("pk1b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
+        -> s1 + s2 - 330
+      --  -> traceShow ("pk1b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
       | otherwise -> ignore -- @TODO Fix simple +1
-  , pk2 = \ (Z:.():.(subtract 1 -> lPos,subtract 1 -> jPos)) (Z:.():.m) y (Z:.(iPos, kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
-      | (kPos <= lPos) -- pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-          -> m + n + y - 330
-         -- -> traceShow ("pk2" ++ show (iPos,jPos,kPos,lPos)) $ m + n + y - 330
-      | otherwise -> ignore
   , pk2b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
       | pairs i j
         -- ->  traceShow ("pk2b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
         ->  s1 + s2 - 330
       | otherwise -> ignore -- @TODO Fix simple +1
-  , unp = \ c ss -> traceShow ("unp" ++ show(c)) $ ss
+  , unp = \ c ss ->  ss
   , jux   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
              | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
-               -> evalHP input iPos jPos
+               -> (evalHP input iPos jPos) - 1500
                -- -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
              | otherwise -> ignore
 
@@ -123,10 +124,10 @@ prettyPaths input = SigEnergyMin
   , pkn = \ [x] [y] -> [x ++ y]
   , hpk = \ () () [x1,x2] [y1,y2]
     -> [x1 ++ y1 ++ x2 ++ y2]
-  , pk1 = \ _ (Z:.():.[t2]) [x1,x2] _ (Z:.[t1]:.()) --  @TODO FIX must know if interior
-    -> [ x1 ++ "{" ++ t1 , "}" ++  t2 ++ x2]
-  , pk1b = \ _ _ (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["{" ++ t1 , "}" ++ t2]
+, pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.[t1]:.()) --  @TODO FIX must know if interior
+    -> [ x1 ++ "pk1_l with (" ++ show (iPos,kPos) ++ ") " ++ t1 , "pk1_r with ("++ show (lPos,jPos)++ ") " ++  t2 ++ x2]
+  , pk1b = \ (Z:.(iPos):.()) (Z:.():.(jPos)) (Z:.[t1]:.()) (Z:.():.[t2])
+    -> ["(pk1b_l with " ++ show iPos ++ ") " ++ t1 , "pk1b_r with " ++ show jPos  ++") " ++ t2]
   , pk2 = \ _ (Z:.():.[s2]) [x1,x2] _ (Z:.[s1]:.()) -- @TODO FIX must handle interior
     -> [ x1 ++ "[" ++ s1 , "]" ++  s2 ++ x2]
   , pk2b = \ _ _ (Z:.[t1]:.()) (Z:.():.[t2])
@@ -154,14 +155,14 @@ pretty = SigEnergyMin
   , pkn = \ [x] [y] -> [x ++ y]
   , hpk = \ () () [x1,x2] [y1,y2]
     -> [x1 ++ y1 ++ x2 ++ y2]
-  , pk1 = \ _ (Z:.():.[t2]) [x1,x2] _ (Z:.[t1]:.()) -- @TODO handle interior
-    -> [ x1 ++ "{" ++ t1 , "}" ++  t2 ++ x2]
-  , pk2 = \ _ (Z:.():.[s2]) [x1,x2] _ (Z:.[s1]:.()) -- @TODO handle interior
-    -> [ x1 ++ "[" ++ s1 , "]" ++  s2 ++ x2]
-  , pk1b = \ (Z:.(l,lPos) :.()) (Z:.():.(r,rPos)) (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["{'" ++ t1 , "'}" ++ t2]
-  , pk2b = \ (Z:.(l,lPos) :.()) (Z:.():.(r,rPos)) (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["['" ++ t1 , "']" ++ t2]
+  , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(iPos,kPos):.()) (Z:.[t1]:.())
+    -> [ x1 ++ replicate (kPos-iPos-1) '.' ++ "{" ++ t1 , "}" ++ replicate (jPos-lPos-1) '.' ++ t2 ++ x2]
+  , pk2 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(iPos,kPos):.()) (Z:.[t1]:.())
+    -> [ x1 ++ replicate (kPos-iPos-1) '.' ++ "[" ++ t1 , "]" ++ replicate (jPos-lPos-1) '.' ++ t2 ++ x2]
+  , pk1b = \ (Z:.(l,lPos):.()) (Z:.():.(r,rPos)) (Z:.[t1]:.()) (Z:.():.[t2])
+    -> ["{" ++ t1 , "}" ++ t2]
+  , pk2b = \ (Z:.(l,lPos):.()) (Z:.():.(r,rPos)) (Z:.[t1]:.()) (Z:.():.[t2])
+    -> ["[" ++ t1 , "]" ++ t2]
   , unp = \ _ [ss] -> ["." ++ ss]
   , jux = \ [x] [y] -> [x ++ y]
   , hairpin = \  (iPos,subtract 1 -> jPos)  -> ["(" ++ replicate (jPos-iPos-1) '.' ++ ")"]
@@ -216,7 +217,7 @@ runInsideBacktrack i iv  (Z:.a:.b:.e:.f:.j:.k:.q) = unId $ axiom g -- Axiom from
                           (toBacktrack k (undefined :: Id y -> Id y))
                           (toBacktrack q (undefined :: Id y -> Id y))
                           (ntPos iv)
-                          (idxStrng 1 31 iv)
+                          (idxStrng1 1 31 iv)
 {-# NoInline runInsideBacktrack #-}
 
 -- @TODO remember to activate AU and GU base pairs!
