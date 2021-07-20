@@ -54,11 +54,11 @@ energyMinAlg input penalty = SigEnergyMin
   , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if
       | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
         -- -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - evalIP input iPos kPos lPos jPos
-        -> m + n + y - 330
+        -> m + n + y + evalIP input iPos jPos kPos lPos
       | otherwise -> ignore
   , pk2 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if
       | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-        -> m + n + y - 330
+        -> m + n + y + evalIP input iPos jPos kPos lPos
       -- -> traceShow ("pk2" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
       | otherwise -> ignore
   , pk1b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
