@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# Language GeneralizedNewtypeDeriving #-}
 
 module BioInf.GenussFold.ViennaRNA_LP where
 
@@ -43,67 +44,47 @@ type Energy = Int
 type IndexRegionParser = (Pos,Pos)
 ignore      = 100123
 
--- Used as energies for the psuedoknot extension
-interiorLoopEnergy ::  Basepair -> Basepair -> Energy
-interiorLoopEnergy ('C','G') ('G','U') = -140
-interiorLoopEnergy ('G','U') ('C','G') = -250
-interiorLoopEnergy ('C','G') ('U','A') = -210
-interiorLoopEnergy ('U','A') ('U','A') = -090
-interiorLoopEnergy ('C','G') ('A','U') = -210
-interiorLoopEnergy ('A','U') ('U','A') = -110
-interiorLoopEnergy ('U','A') ('A','U') = -130
-interiorLoopEnergy ('U','A') ('C','G') = -240
-interiorLoopEnergy ('C','G') ('C','G') = -330
-interiorLoopEnergy ('C','G') ('U','G') = -210
-interiorLoopEnergy ('U','G') ('A','U') = -100
-interiorLoopEnergy ('A','U') ('A','U') = -090
-interiorLoopEnergy ('G','C') ('A','U') = -240
-interiorLoopEnergy ('A','U') ('G','C') = -210
-interiorLoopEnergy _ _ = -151
-
-energyMinAlg :: Monad m => BS.ByteString ->  SigEnergyMin m Energy Energy NtPos (Pos,Pos)
-energyMinAlg input = SigEnergyMin
+energyMinAlg :: Monad m => BS.ByteString -> Int -> SigEnergyMin m Energy Energy NtPos (Pos,Pos)
+energyMinAlg input penalty = SigEnergyMin
   { nil  = \ () -> 0
   , pkn = \ x y -> x + y
-  , hpk = \ () () x y
-    -> let m = maximum [x,y] in if m < 0 then x + y -500 else ignore -- @TODO FIX Penalty
-    -- check for indicis again because of extension .. draw as picture to visualize it because different to "normal stacks"
-    -- nicht von kleiner zu größer
-   , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
-       -- interiorLoops instead of stacking in LP+
-       | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-         -- -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - evalIP input iPos kPos lPos jPos
-         -> m + n + y - 330
-       | otherwise -> ignore
-  , pk2 = \ (Z:.():.(lPos,subtract 1 -> jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if -- @TODO which indexes must be increment or decrementd for vienna and first band i k, second l j
-      | (minimum [lPos,jPos,iPos,kPos] >= 0) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-         -> m + n + y - 330
-        -- -> traceShow ("pk2" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
+  , hpk = \ () () x y -- ::  H-Pseudoknot -  Only if poth parts are contributing a negative energy
+    -> let m = maximum [x,y] in if m < 0 then x + y + penalty else ignore
+   -- interiorLoops instead of stacking in LP+
+  , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if
+      | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+        -- -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - evalIP input iPos kPos lPos jPos
+        -> m + n + y - 330
+      | otherwise -> ignore
+  , pk2 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if
+      | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+        -> m + n + y - 330
+      -- -> traceShow ("pk2" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
       | otherwise -> ignore
   , pk1b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
       | pairs i j
-        -> s1 + s2 - 330
+        -> s1 + s2 -- - 330
       --  -> traceShow ("pk1b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
       | otherwise -> ignore -- @TODO Fix simple +1
   , pk2b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
       | pairs i j
         -- ->  traceShow ("pk2b" ++ show(i,iPos,j,jPos)) $ s1 + s2 - 330
-        ->  s1 + s2 - 330
+        ->  s1 + s2 -- - 330
       | otherwise -> ignore -- @TODO Fix simple +1
   , unp = \ c ss ->  ss
   , jux   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
-             | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
-               -> (evalHP input iPos jPos) - 1500
-               -- -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
-             | otherwise -> ignore
+    | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
+      -> (evalHP input iPos jPos)
+  -- -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
+    | otherwise -> ignore
 
   , interior = \ (iPos, kPos) closed (subtract 1 -> lPos, subtract 1 -> jPos) -> let e = evalIP input iPos jPos kPos lPos in if
-             | pairs (BS.index input iPos) (BS.index input jPos)
-               && pairs (BS.index input kPos) (BS.index input lPos)
-               -> closed + evalIP input iPos jPos kPos lPos
-               -- -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) $ e + closed -- evalIP input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
-             | otherwise -> ignore
+    | pairs (BS.index input iPos) (BS.index input jPos)
+      && pairs (BS.index input kPos) (BS.index input lPos)
+      -> closed + evalIP input iPos jPos kPos lPos
+      -- -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) $ e + closed -- evalIP input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
+    | otherwise -> ignore
 
   , mlr      = \ (a,_) m m1 (d,_) -> if
              | pairs a d -> m + m1 + 290
@@ -124,14 +105,14 @@ prettyPaths input = SigEnergyMin
   , pkn = \ [x] [y] -> [x ++ y]
   , hpk = \ () () [x1,x2] [y1,y2]
     -> [x1 ++ y1 ++ x2 ++ y2]
-, pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.[t1]:.()) --  @TODO FIX must know if interior
+  , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.[t1]:.()) --  @TODO FIX must know if interior
     -> [ x1 ++ "pk1_l with (" ++ show (iPos,kPos) ++ ") " ++ t1 , "pk1_r with ("++ show (lPos,jPos)++ ") " ++  t2 ++ x2]
   , pk1b = \ (Z:.(iPos):.()) (Z:.():.(jPos)) (Z:.[t1]:.()) (Z:.():.[t2])
     -> ["(pk1b_l with " ++ show iPos ++ ") " ++ t1 , "pk1b_r with " ++ show jPos  ++") " ++ t2]
-  , pk2 = \ _ (Z:.():.[s2]) [x1,x2] _ (Z:.[s1]:.()) -- @TODO FIX must handle interior
-    -> [ x1 ++ "[" ++ s1 , "]" ++  s2 ++ x2]
-  , pk2b = \ _ _ (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["[" ++ t1 , "]" ++ t2]
+  , pk2 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.[t1]:.()) --  @TODO FIX must know if interior
+    -> [ x1 ++ "pk2_l with (" ++ show (iPos,kPos) ++ ") " ++ t1 , "pk2_r with ("++ show (lPos,jPos)++ ") " ++  t2 ++ x2]
+  , pk2b = \ (Z:.(iPos):.()) (Z:.():.(jPos)) (Z:.[t1]:.()) (Z:.():.[t2])
+    -> ["(pk2b_l with " ++ show iPos ++ ") " ++ t1 , "pk2b_r with " ++ show jPos  ++") " ++ t2]
   , unp = \  _ [ss] -> [ss]
   , jux = \ [x] [y] -> [x ++ y]
   , hairpin = \  (iPos, subtract 1 -> jPos)  ->
@@ -178,21 +159,29 @@ pretty = SigEnergyMin
   }
 {-# INLINE pretty #-}
 
-energyMin :: Int -> String -> (Energy,[[String]])
-energyMin k inp = (z, take k bs) where
+-- The number of desired backtracks
+newtype NumBT = NumBT Int -- alias for an Int :: But newtype as explicit naming
+  deriving Num
+
+-- The penalty for opening a pseudoknot
+newtype PenPK = PenPK Int
+  deriving Num
+
+energyMin :: NumBT -> PenPK -> String -> (Energy,[[String]])
+energyMin (NumBT k) (PenPK p) inp = (z, take k bs) where
   i = BS.pack . Prelude.map toUpper $ inp
   iv = VU.fromList . Prelude.map toUpper $ inp
-  !(Z:.a:.b:.e:.f:.g:.j:.m) = runInsideForward i iv
+  !(Z:.a:.b:.e:.f:.g:.j:.m) = runInsideForward i iv p
   z = unId $ axiom a -- gets the value from the table
-  bs = runInsideBacktrack i iv (Z:.a:.b:.e:.f:.g:.j:.m)
+  bs = runInsideBacktrack i iv p (Z:.a:.b:.e:.f:.g:.j:.m)
 {-# NOINLINE energyMin #-}
 
 type X = ITbl Id Unboxed Subword Energy
 type T = ITbl Id Unboxed (Z:.Subword:.Subword) Energy
 
-runInsideForward :: BS.ByteString -> VU.Vector Char -> Z:.X:.X:.X:.X:.X:.T:.T
-runInsideForward i iv = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
-                   $ gEnergyMin (energyMinAlg i)
+runInsideForward :: BS.ByteString -> VU.Vector Char -> Int -> Z:.X:.X:.X:.X:.X:.T:.T
+runInsideForward i iv p = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
+                   $ gEnergyMin (energyMinAlg i p)
                         (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (166999) []))
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (266999) []))
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (366999) []))
@@ -205,9 +194,9 @@ runInsideForward i iv = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
   where n = BS.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Z:.X:.X:.X:.X:.X:.T:.T -> [[String]] -- for the non-terminals
-runInsideBacktrack i iv  (Z:.a:.b:.e:.f:.j:.k:.q) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
-  where !(Z:.g:._:._:._:._:._:._) = gEnergyMin (energyMinAlg i <|| pretty)
+runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Int -> Z:.X:.X:.X:.X:.X:.T:.T -> [[String]] -- for the non-terminals
+runInsideBacktrack i iv p (Z:.a:.b:.e:.f:.j:.k:.q) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
+  where !(Z:.g:._:._:._:._:._:._) = gEnergyMin (energyMinAlg i p <|| pretty)
   -- where !(Z:.g:.h:.l:.m:.n:.o:.p) = gEnergyMin (energyMinAlg i <|| prettyPaths i)
                           (toBacktrack a (undefined :: Id y -> Id y))
                           (toBacktrack b (undefined :: Id y -> Id y))
