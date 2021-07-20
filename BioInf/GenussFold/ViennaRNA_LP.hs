@@ -229,7 +229,7 @@ ntPos xs = Chr f xs where
 
 -- | Until i figure out how to fix the addition of 1 in the lib
 evalIP :: BS.ByteString -> Int -> Int -> Int -> Int -> Energy
-evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopP input i j k l
+evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = if i < j && k < l then V.intLoopP input i j k l else error "evalIP :: positions messed up"
 
 evalHP :: BS.ByteString -> Int -> Int -> Energy
 evalHP input ((+1) -> i) ((+1) -> j) = V.hairpinP input i j
