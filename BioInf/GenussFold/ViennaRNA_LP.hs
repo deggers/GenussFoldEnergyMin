@@ -3,10 +3,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
+{-# Options_GHC -fspec-constr-count=1000 #-}
+{-# Options_GHC -fspec-constr-recursive=1000 #-}
+{-# Options_GHC -fspec-constr-threshold=1000 #-}
+{-# Options_GHC -fmax-worker-args=1000 #-} -- temporäre funktionen bis zu 1000 args ok
+{-# Options_GHC -flate-dmd-anal #-} -- gibts wahrscheinlich nicht in ghci 7 - late demand analys
+-- both, full laziness and no liberate case are essential to have things inline nicely!
+{-# Options_GHC -fno-full-laziness #-} -- stellt sicher das keine argument rausgeworfen werden könnte probleme mit Fusion erzeugen
+{-# Options_GHC -fno-liberate-case #-} -- alle cases betrachten
+
 module BioInf.GenussFold.ViennaRNA_LP where
 
-import           Debug.Trace
 
+import           Debug.Trace
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.ST
@@ -35,6 +44,9 @@ import           GHC.Float
 
 import           BioInf.GenussFold.Grammars.ViennaRNA_LP
 
+-- Use +RTS -s    for some runtime stuff
+-- echo "CCGAGCCCCCCCCGGCAGG" | ./ViennaRNA_LP -p 700 +RTS -s
+
 -- Use domain-specific language
 type Pos = Int
 type Nt = Char
@@ -50,16 +62,22 @@ energyMinAlg input penalty = SigEnergyMin
   , pkn = \ x y -> x + y
   , hpk = \ () () x y -- ::  H-Pseudoknot -  Only if poth parts are contributing a negative energy
     -> let m = maximum [x,y] in if m < 0 then x + y + penalty else ignore
-   -- interiorLoops instead of stacking in LP+
+   -- interiorLoops instead of stacking in LP
   , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if
-      | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
-        -- -> traceShow ("pk1" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - evalIP input iPos kPos lPos jPos
-        -> m + n + y + evalIP input iPos jPos kPos lPos
+      | (minimum [lPos,jPos,iPos,kPos] >= 0)
+        && (jPos < BS.length input)
+        && pairs (BS.index input iPos) (BS.index input jPos)
+        && pairs (BS.index input kPos) (BS.index input lPos)
+       -- -> traceShow ("pk1" ++ show (iPos,jPos,kPos,lPos)) $ m + n + y + evalIP input iPos jPos kPos lPos
+       -> m + n + y + evalIP input iPos jPos kPos lPos
       | otherwise -> ignore
   , pk2 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if
-      | (minimum [lPos,jPos,iPos,kPos] >= 0) && (jPos < BS.length input) && pairs (BS.index input iPos) (BS.index input jPos) && pairs (BS.index input kPos) (BS.index input lPos)
+      | (minimum [lPos,jPos,iPos,kPos] >= 0)
+        && (jPos < BS.length input)
+        && pairs (BS.index input iPos) (BS.index input jPos)
+        && pairs (BS.index input kPos) (BS.index input lPos)
         -> m + n + y + evalIP input iPos jPos kPos lPos
-      -- -> traceShow ("pk2" ++ show (iPos,kPos,lPos,jPos)) $ m + n + y - 330
+      -- -> traceShow ("pk2" ++ show (iPos,jPos,kPos,lPos)) $ m + n + y - 330
       | otherwise -> ignore
   , pk1b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
       | pairs i j
@@ -161,11 +179,17 @@ pretty = SigEnergyMin
 
 -- The number of desired backtracks
 newtype NumBT = NumBT Int -- alias for an Int :: But newtype as explicit naming
-  deriving Num
+  deriving (Num, Show, Read)
 
 -- The penalty for opening a pseudoknot
 newtype PenPK = PenPK Int
   deriving Num
+
+instance Read PenPK where
+ readsPrec p s = [ (PenPK i, t) | (i,t) <- readsPrec p s ]
+
+instance Show PenPK where
+  show (PenPK p) = show p
 
 energyMin :: NumBT -> PenPK -> String -> (Energy,[[String]])
 energyMin (NumBT k) (PenPK p) inp = (z, take k bs) where
@@ -209,7 +233,6 @@ runInsideBacktrack i iv p (Z:.a:.b:.e:.f:.j:.k:.q) = unId $ axiom g -- Axiom fro
                           (idxStrng1 1 31 iv)
 {-# NoInline runInsideBacktrack #-}
 
--- @TODO remember to activate AU and GU base pairs!
 pairs :: Char -> Char -> Bool
 pairs !c !d
   =  c=='A' && d=='U'
@@ -227,9 +250,11 @@ ntPos xs = Chr f xs where
   {-# Inline [0] f #-}
   f xs k = (VG.unsafeIndex xs k, k)
 
--- | Until i figure out how to fix the addition of 1 in the lib
 evalIP :: BS.ByteString -> Int -> Int -> Int -> Int -> Energy
-evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = if i < j && k < l then V.intLoopP input i j k l else error "evalIP :: positions messed up"
+evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopP input i j k l
+--evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = if i < j && k < l
+--  then V.intLoopP input i j k l
+--  else error ("evalIP :: positions messed up (i,j,k,l): " ++ show (i,j,k,l) )
 
 evalHP :: BS.ByteString -> Int -> Int -> Energy
 evalHP input ((+1) -> i) ((+1) -> j) = V.hairpinP input i j

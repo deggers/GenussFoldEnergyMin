@@ -62,12 +62,12 @@ library
                , inline-c
   exposed-modules:
     BioInf.GenussFold
-    BioInf.GenussFold.PKN
     BioInf.GenussFold.ViennaRNA
+    BioInf.GenussFold.Grammars.ViennaRNA
     BioInf.GenussFold.IdxStrng
     BioInf.GenussFold.IndexToIndexParser
-    BioInf.GenussFold.KHP_Nussinov
-    BioInf.GenussFold.Grammars.KHP_Nussinov
+    BioInf.GenussFold.ViennaRNA_LP
+    BioInf.GenussFold.Grammars.ViennaRNA_LP
   default-language:
     Haskell2010
   default-extensions: BangPatterns
@@ -81,10 +81,12 @@ library
                     , TypeFamilies
                     , TypeOperators
                     , FlexibleInstances
+                    , GeneralizedNewtypeDeriving
   hs-source-dirs:
    .
   ghc-options:
-    -O0
+    -Odph
+    -optc-O3
     -funbox-strict-fields
     -fcpr-off
     -fno-liberate-case
@@ -97,7 +99,7 @@ library
 
 -- Wrapper for the library
 
-executable GenussFold
+executable ViennaRNA
   build-depends: base
                , cmdargs          >= 0.10   && < 0.11
                , FormalGrammars
@@ -113,16 +115,16 @@ executable GenussFold
   default-extensions: DeriveDataTypeable
                     , RecordWildCards
   main-is:
-    GenussFold.hs
+    ViennaRNA.hs
   ghc-options:
-    -O0
+    -O2
+    -threaded
     -funbox-strict-fields
 
-executable KHP_Nussinov
+executable ViennaRNA_LP
   build-depends: base
                , cmdargs          >= 0.10   && < 0.11
                , FormalGrammars
---               , ViennaRNA-bindings
                , GenussFold
                , optparse-simple
                , optparse-applicative
@@ -133,9 +135,9 @@ executable KHP_Nussinov
   default-extensions: DeriveDataTypeable
                     , RecordWildCards
   main-is:
-    KHP_Nussinov.hs
+    ViennaRNA_LP.hs
   ghc-options:
-    -O0
+    -O2
     -funbox-strict-fields
 
 test-suite properties-fast

@@ -6,12 +6,11 @@ import ADP.Fusion
 import ADP.Fusion.Base.Subword
 import FormalLanguage
 
--- @TODO  hairpin -> regionCtx 5 ... 32  3 empty 2 paired to ensure only semtical correct parses
--- | Define signature and grammar
 [formalLanguage|
 Verbose
 
 Grammar: EnergyMin
+N: S
 N: a_Struct
 N: b_Closed
 N: c_M
@@ -22,9 +21,9 @@ T: regionCtx
 
 S: a_Struct
 
-a_Struct -> unpaired     <<< nt a_Struct
-a_Struct -> juxtaposed   <<< b_Closed a_Struct
-a_Struct -> nil          <<< e
+a_Struct -> nil <<< e
+a_Struct -> unp <<< nt a_Struct
+a_Struct -> jux <<< b_Closed a_Struct
 
 b_Closed -> hairpin      <<< regionCtx
 b_Closed -> interior     <<< regionCtx b_Closed regionCtx
