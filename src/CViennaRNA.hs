@@ -13,5 +13,6 @@ main = do
       ls <- lines <$> getContents
       forM_ ls $ \l -> do
         let (r :: Double,bs) = V.mfe (BS.pack l)
-        printf "%s   %d\n" l (round (r * 100) :: Int)
---        forM_ bs $ \[b] -> printf "%s   %d\n" b r
+        let energy = round (r * 100) :: Int
+        printf "%s   %d\n" l energy
+        printf "%s   %d\n" (BS.unpack bs) energy
