@@ -121,6 +121,23 @@ executable ViennaRNA
     -threaded
     -funbox-strict-fields
 
+executable CViennaRNA
+  build-depends: base
+               , cmdargs          >= 0.10   && < 0.11
+               , bytestring
+               , ViennaRNA-bindings
+  hs-source-dirs:
+    src
+  default-language:
+    Haskell2010
+  default-extensions: DeriveDataTypeable
+                    , RecordWildCards
+  main-is:
+    CViennaRNA.hs
+  ghc-options:
+    -O2
+    -funbox-strict-fields
+
 executable ViennaRNA_LP
   build-depends: base
                , cmdargs          >= 0.10   && < 0.11
