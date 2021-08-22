@@ -118,7 +118,7 @@ executable ViennaRNA
   main-is:
     ViennaRNA.hs
   ghc-options:
-    -O2
+    -O3
     -threaded
     -funbox-strict-fields
 
@@ -155,7 +155,7 @@ executable ViennaRNA_LP
   main-is:
     ViennaRNA_LP.hs
   ghc-options:
-    -O2
+    -O3
     -funbox-strict-fields
 
 test-suite properties-fast
