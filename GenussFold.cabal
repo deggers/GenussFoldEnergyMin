@@ -60,6 +60,7 @@ library
                , optparse-simple
                , optparse-applicative
                , inline-c
+               , deepseq
   exposed-modules:
     BioInf.GenussFold
     BioInf.GenussFold.ViennaRNA
