@@ -66,13 +66,13 @@ energyMinAlg input penalty compound = SigEnergyMin
   , jux   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
     | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
-      -> (evalHP compound input iPos jPos)
+      -> (evalHP compound iPos jPos)
   -- -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
     | otherwise -> ignore
-  , interior = \ (iPos, kPos) closed (subtract 1 -> lPos, subtract 1 -> jPos) -> let e = evalIP compound input iPos jPos kPos lPos in if
+  , interior = \ (iPos, kPos) closed (subtract 1 -> lPos, subtract 1 -> jPos) -> let e = evalIP compound iPos jPos kPos lPos in if
     | pairs (BS.index input iPos) (BS.index input jPos)
       && pairs (BS.index input kPos) (BS.index input lPos)
-      -> closed + evalIP compound input iPos jPos kPos lPos
+      -> closed + evalIP compound iPos jPos kPos lPos
       -- -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) $ e + closed -- evalIP input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
     | otherwise -> ignore
   , mlr      = \ (a,_) m m1 (d,_) -> if
@@ -151,7 +151,6 @@ runInsideForward i iv p c = mutateTablesWithHints (Proxy :: Proxy CFG)
 runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Int -> Ptr() -> Z:.X:.X:.X:.X -> [[String]] -- for the non-terminals
 runInsideBacktrack i iv p c (Z:.a:.b:.e:.f) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
   where !(Z:.g:._:._:._) = gEnergyMin (energyMinAlg i p c<|| pretty)
-  -- where !(Z:.g:.h:.l:.m:.n:.o:.p) = gEnergyMin (energyMinAlg i <|| prettyPaths i)
                           (toBacktrack a (undefined :: Id y -> Id y))
                           (toBacktrack b (undefined :: Id y -> Id y))
                           (toBacktrack e (undefined :: Id y -> Id y))
@@ -178,14 +177,14 @@ ntPos xs = Chr f xs where
   {-# Inline [0] f #-}
   f xs k = (VG.unsafeIndex xs k, k)
 
-evalIP :: Ptr() -> BS.ByteString -> Int -> Int -> Int -> Int -> Energy
-evalIP  c input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopCP c i j k l
+evalIP :: Ptr() -> Int -> Int -> Int -> Int -> Energy
+evalIP  c ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopCP c i j k l
 --evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = if i < j && k < l
 --  then V.intLoopP input i j k l
 --  else error ("evalIP :: positions messed up (i,j,k,l): " ++ show (i,j,k,l) )
 
-evalHP :: Ptr() -> BS.ByteString -> Int -> Int -> Energy
-evalHP c input ((+1) -> i) ((+1) -> j) = V.hairpinCP c i j
+evalHP :: Ptr() -> Int -> Int -> Energy
+evalHP c ((+1) -> i) ((+1) -> j) = V.hairpinCP c i j
 
 {--
 Look at:
