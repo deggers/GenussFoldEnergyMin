@@ -19,6 +19,7 @@ import           Debug.Trace
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.ST
+import           Control.DeepSeq
 import           Data.Char (toUpper,toLower,isSpace)
 import           Data.List
 import           Data.Maybe
@@ -30,6 +31,8 @@ import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Generic as VG
 import           Text.Printf
+import           Foreign.Ptr
+import           System.IO.Unsafe
 
 import           ADP.Fusion
 import           Data.PrimitiveArray as PA hiding (map)
@@ -56,8 +59,8 @@ type Energy = Int
 type IndexRegionParser = (Pos,Pos)
 ignore      = 100123
 
-energyMinAlg :: Monad m => BS.ByteString -> Int -> SigEnergyMin m Energy Energy NtPos (Pos,Pos)
-energyMinAlg input penalty = SigEnergyMin
+energyMinAlg :: Monad m => BS.ByteString -> Int -> Ptr() -> SigEnergyMin m Energy Energy NtPos (Pos,Pos)
+energyMinAlg input penalty compound = SigEnergyMin
   { nil  = \ () -> 0
   , pkn = \ x y -> x + y
   , hpk = \ () () x y -- ::  H-Pseudoknot -  Only if poth parts are contributing a negative energy
@@ -69,14 +72,14 @@ energyMinAlg input penalty = SigEnergyMin
         && pairs (BS.index input iPos) (BS.index input jPos)
         && pairs (BS.index input kPos) (BS.index input lPos)
        -- -> traceShow ("pk1" ++ show (iPos,jPos,kPos,lPos)) $ m + n + y + evalIP input iPos jPos kPos lPos
-       -> m + n + y + evalIP input iPos jPos kPos lPos
+       -> m + n + y + evalIP compound iPos jPos kPos lPos
       | otherwise -> ignore
   , pk2 = \ (Z:.():.(lPos,jPos)) (Z:.():.m) y (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.n:.()) -> if
       | (minimum [lPos,jPos,iPos,kPos] >= 0)
         && (jPos < BS.length input)
         && pairs (BS.index input iPos) (BS.index input jPos)
         && pairs (BS.index input kPos) (BS.index input lPos)
-        -> m + n + y + evalIP input iPos jPos kPos lPos
+        -> m + n + y + evalIP compound iPos jPos kPos lPos
       -- -> traceShow ("pk2" ++ show (iPos,jPos,kPos,lPos)) $ m + n + y - 330
       | otherwise -> ignore
   , pk1b = \ (Z:.(i,iPos):.()) (Z:.():.(j,jPos)) (Z:.s1:.()) (Z:.():.s2) -> if
@@ -93,14 +96,14 @@ energyMinAlg input penalty = SigEnergyMin
   , jux   = \ x y -> x + y -- traceShow ("JXP" ++ show (x,y)) $ x + y
   , hairpin  = \ (iPos, subtract 1 -> jPos) -> if
     | (jPos-iPos) > 3 && pairs (BS.index input iPos) (BS.index input jPos)
-      -> (evalHP input iPos jPos)
+      -> (evalHP compound iPos jPos)
   -- -> traceShow ("HP" ++ show (iPos,jPos, evalHP input iPos jPos)) $ evalHP input iPos jPos
     | otherwise -> ignore
 
-  , interior = \ (iPos, kPos) closed (subtract 1 -> lPos, subtract 1 -> jPos) -> let e = evalIP input iPos jPos kPos lPos in if
+  , interior = \ (iPos, kPos) closed (subtract 1 -> lPos, subtract 1 -> jPos) -> let e = evalIP compound iPos jPos kPos lPos in if
     | pairs (BS.index input iPos) (BS.index input jPos)
       && pairs (BS.index input kPos) (BS.index input lPos)
-      -> closed + evalIP input iPos jPos kPos lPos
+      -> closed + evalIP compound iPos jPos kPos lPos
       -- -> traceShow ("INT " ++ show (closed,iPos,jPos,kPos,lPos,e)) $ e + closed -- evalIP input iPos jPos kPos lPos  --subtract 330 closed -- interiorLoopEnergy (BS.index input iPos, BS.index input jPos) (BS.index input kPos, BS.index input lPos)
     | otherwise -> ignore
 
@@ -116,37 +119,6 @@ energyMinAlg input penalty = SigEnergyMin
   , h    =   SM.foldl' min (ignore)
   }
 {-# INLINE energyMinAlg #-}
-
-prettyPaths :: Monad m => BS.ByteString -> SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
-prettyPaths input = SigEnergyMin
-  { nil = \ () ->  [""]
-  , pkn = \ [x] [y] -> [x ++ y]
-  , hpk = \ () () [x1,x2] [y1,y2]
-    -> [x1 ++ y1 ++ x2 ++ y2]
-  , pk1 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.[t1]:.()) --  @TODO FIX must know if interior
-    -> [ x1 ++ "pk1_l with (" ++ show (iPos,kPos) ++ ") " ++ t1 , "pk1_r with ("++ show (lPos,jPos)++ ") " ++  t2 ++ x2]
-  , pk1b = \ (Z:.(iPos):.()) (Z:.():.(jPos)) (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["(pk1b_l with " ++ show iPos ++ ") " ++ t1 , "pk1b_r with " ++ show jPos  ++") " ++ t2]
-  , pk2 = \ (Z:.():.(lPos,jPos)) (Z:.():.[t2]) [x1,x2] (Z:.(subtract 1 -> iPos, subtract 1 -> kPos):.()) (Z:.[t1]:.()) --  @TODO FIX must know if interior
-    -> [ x1 ++ "pk2_l with (" ++ show (iPos,kPos) ++ ") " ++ t1 , "pk2_r with ("++ show (lPos,jPos)++ ") " ++  t2 ++ x2]
-  , pk2b = \ (Z:.(iPos):.()) (Z:.():.(jPos)) (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["(pk2b_l with " ++ show iPos ++ ") " ++ t1 , "pk2b_r with " ++ show jPos  ++") " ++ t2]
-  , unp = \  _ [ss] -> [ss]
-  , jux = \ [x] [y] -> [x ++ y]
-  , hairpin = \  (iPos, subtract 1 -> jPos)  ->
-      ["Hairpin Loop (" ++ show iPos ++ "," ++ show jPos ++ "): " ++ show (V.hairpinP input iPos jPos)]
-  , interior = \ (i,k) [closed] (subtract 1 -> l, subtract 1 -> j) ->
-      ["Interior loop (" ++ show i ++ "," ++ show k ++ ") (" ++ show l ++ "," ++ show j ++  "):" ++ show (evalIP input i j k l) ++ " " ++ closed]
-  , mlr = \ a [m] [m1] b ->
-      ["Multi (" ++ show a ++ "," ++ show b ++ ") m:" ++ m ++ " m1: " ++ m1 ++ " Multi (?,?) "]
-  , mcm_1 = \ _ [closed] -> [closed]
-  , mcm_2 = \ [m] [closed] -> [m ++ closed]
-  , mcm_3 = \ [m] _ -> [m]
-  , ocm_1 = \ [m1] -> [m1]
-  , ocm_2 = \ [x] _ -> [x]
-  , h   = SM.toList
-  }
-{-# INLINE prettyPaths #-}
 
 pretty :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
 pretty = SigEnergyMin
@@ -192,20 +164,25 @@ instance Show PenPK where
   show (PenPK p) = show p
 
 energyMin :: NumBT -> PenPK -> String -> (Energy,[[String]])
-energyMin (NumBT k) (PenPK p) inp = (z, take k bs) where
-  i = BS.pack . Prelude.map toUpper $ inp
-  iv = VU.fromList . Prelude.map toUpper $ inp
-  !(Z:.a:.b:.e:.f:.g:.j:.m) = runInsideForward i iv p
-  z = unId $ axiom a -- gets the value from the table
-  bs = runInsideBacktrack i iv p (Z:.a:.b:.e:.f:.g:.j:.m)
+energyMin (NumBT k) (PenPK p) inp = unsafePerformIO $ do
+  let
+    i = BS.pack . Prelude.map toUpper $ inp
+  c <- V.mkFoldCompound i
+  let
+    iv = VU.fromList . Prelude.map toUpper $ inp
+    !(Z:.a:.b:.e:.f:.g:.j:.m) = runInsideForward i iv p c
+    z = unId $ axiom a -- gets the value from the table
+    bs = runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.g:.j:.m)
+  deepseq bs $ V.destroyFoldCompound c
+  return (z, bs)
 {-# NOINLINE energyMin #-}
 
 type X = ITbl Id Unboxed Subword Energy
 type T = ITbl Id Unboxed (Z:.Subword:.Subword) Energy
 
-runInsideForward :: BS.ByteString -> VU.Vector Char -> Int -> Z:.X:.X:.X:.X:.X:.T:.T
-runInsideForward i iv p = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
-                   $ gEnergyMin (energyMinAlg i p)
+runInsideForward :: BS.ByteString -> VU.Vector Char -> Int -> Ptr() -> Z:.X:.X:.X:.X:.X:.T:.T
+runInsideForward i iv p c = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
+                   $ gEnergyMin (energyMinAlg i p c)
                         (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (166999) []))
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (266999) []))
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (366999) []))
@@ -218,9 +195,9 @@ runInsideForward i iv p = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
   where n = BS.length i
 {-# NoInline runInsideForward #-}
 
-runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Int -> Z:.X:.X:.X:.X:.X:.T:.T -> [[String]] -- for the non-terminals
-runInsideBacktrack i iv p (Z:.a:.b:.e:.f:.j:.k:.q) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
-  where !(Z:.g:._:._:._:._:._:._) = gEnergyMin (energyMinAlg i p <|| pretty)
+runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Int -> Ptr() -> Z:.X:.X:.X:.X:.X:.T:.T -> [[String]] -- for the non-terminals
+runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.j:.k:.q) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
+  where !(Z:.g:._:._:._:._:._:._) = gEnergyMin (energyMinAlg i p c<|| pretty)
   -- where !(Z:.g:.h:.l:.m:.n:.o:.p) = gEnergyMin (energyMinAlg i <|| prettyPaths i)
                           (toBacktrack a (undefined :: Id y -> Id y))
                           (toBacktrack b (undefined :: Id y -> Id y))
@@ -250,17 +227,11 @@ ntPos xs = Chr f xs where
   {-# Inline [0] f #-}
   f xs k = (VG.unsafeIndex xs k, k)
 
-evalIP :: BS.ByteString -> Int -> Int -> Int -> Int -> Energy
-evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopP input i j k l
---evalIP input ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = if i < j && k < l
---  then V.intLoopP input i j k l
---  else error ("evalIP :: positions messed up (i,j,k,l): " ++ show (i,j,k,l) )
+evalIP :: Ptr() -> Int -> Int -> Int -> Int -> Energy
+evalIP  c ((+1 ) -> i) ( (+1) -> j) ((+1) -> k) ((+1) -> l) = V.intLoopCP c i j k l
 
-evalHP :: BS.ByteString -> Int -> Int -> Energy
-evalHP input ((+1) -> i) ((+1) -> j) = V.hairpinP input i j
-
-evalMB :: BS.ByteString -> Int -> Int -> Energy
-evalMB input ((+1) -> i) ((+1) -> j) = V.mbLoopP input i j
+evalHP :: Ptr() -> Int -> Int -> Energy
+evalHP c ((+1) -> i) ((+1) -> j) = V.hairpinCP c i j
 
 {--
 Look at:
