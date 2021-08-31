@@ -38,6 +38,7 @@ main = greet =<< execParser opts
      <> progDesc "ViennaRNA and LP"
      <> header "ViennaRNA with H-Pseudoknots" )
 
+# TODO Add here to only take "c" backtracks
 greet :: Options -> IO ()
 greet (Options c p) = do
       ls <- lines <$> getContents

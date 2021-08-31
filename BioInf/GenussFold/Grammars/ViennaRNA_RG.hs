@@ -44,7 +44,6 @@ c_M -> mcm_3             <<< c_M nt
 d_M1 -> ocm_1            <<< b_Closed
 d_M1 -> ocm_2            <<< d_M1 nt
 
---                   X S ::  Y S ::  X S :: Y S
 e_PKN -> hpk             <<< f_X g_Y f_X g_Y
 
 <f_X,f_X> -> pk1 <<< [-,regionCtx] <f_X,f_X> [regionCtx,-] [-,a_Struct] [a_Struct,-]
@@ -58,6 +57,3 @@ Emit: EnergyMin
 |]
 
 makeAlgebraProduct ''SigEnergyMin
-
--- NOTE :: Does currently not work - mybe X S Y S X S Y S must be seperate
--- and cannot be processed when merged into one split-terminal ?

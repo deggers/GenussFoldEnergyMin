@@ -52,15 +52,15 @@ e_PKN -> hpk             <<< f_X f_X
 <f_X,f_X> -> pk1b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
 
 -- M
-<g_Y,g_Y> -> pk2a <<< [-, h_Z1] [-,h_Z2] <g_Y,g_Y> [h_Z1,-] [-,h_Z2]
+<g_Y,g_Y> -> pk2a <<< [-,h_Z1] [-,h_Z2] <g_Y,g_Y> [h_Z1,-] [-,h_Z2]
 <g_Y,g_Y> -> pk2b <<< h_Z1 h_Z1
 
 -- K :: K1 and K2
 <h_Z1,h_Z1> -> pk3a <<< [-,regionCtx] [-,a_Struct] <h_Z1,h_Z1> [regionCtx,-] [a_Struct,-]
 <h_Z1,h_Z1> -> pk3b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
 
-<h_Z2,h_Z2> -> pk3a <<< [-,regionCtx] [-,a_Struct] <h_Z2,h_Z2> [regionCtx,-] [a_Struct,-]
-<h_Z2,h_Z2> -> pk3b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
+<h_Z2,h_Z2> -> pk4a <<< [-,regionCtx] [-,a_Struct] <h_Z2,h_Z2> [regionCtx,-] [a_Struct,-]
+<h_Z2,h_Z2> -> pk4b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
 
 //
 Emit: EnergyMin

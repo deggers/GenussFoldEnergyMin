@@ -37,7 +37,11 @@ S: a_Struct
 a_Struct -> nil <<< e
 a_Struct -> unp <<< nt a_Struct
 a_Struct -> jux <<< b_Closed a_Struct
-a_Struct -> pkn <<< e_HPKN a_Struct
+
+a_Struct -> h_pkn <<< e_HPKN a_Struct
+a_Struct -> m_pkn <<< f_MPKN a_Struct
+a_Struct -> l_pkn <<< g_LPKN a_Struct
+a_Struct -> k_pkn <<< h_KPKN a_Struct
 
 b_Closed -> hairpin      <<< regionCtx
 b_Closed -> interior     <<< regionCtx b_Closed regionCtx
