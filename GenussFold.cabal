@@ -69,6 +69,12 @@ library
     BioInf.GenussFold.IndexToIndexParser
     BioInf.GenussFold.ViennaRNA_LP
     BioInf.GenussFold.Grammars.ViennaRNA_LP
+    BioInf.GenussFold.ViennaRNA_DP
+    BioInf.GenussFold.Grammars.ViennaRNA_DP
+    BioInf.GenussFold.ViennaRNA_RG
+    BioInf.GenussFold.Grammars.ViennaRNA_RG
+    BioInf.GenussFold.ViennaRNA_RN
+    BioInf.GenussFold.Grammars.ViennaRNA_RN
   default-language:
     Haskell2010
   default-extensions: BangPatterns
@@ -136,7 +142,7 @@ executable CViennaRNA
   main-is:
     CViennaRNA.hs
   ghc-options:
-    -O2
+    -O3
     -funbox-strict-fields
 
 executable ViennaRNA_LP
@@ -154,6 +160,66 @@ executable ViennaRNA_LP
                     , RecordWildCards
   main-is:
     ViennaRNA_LP.hs
+  ghc-options:
+    -O3
+    -funbox-strict-fields
+
+
+executable ViennaRNA_DP
+  build-depends: base
+               , cmdargs          >= 0.10   && < 0.11
+               , FormalGrammars
+               , GenussFold
+               , optparse-simple
+               , optparse-applicative
+  hs-source-dirs:
+    src
+  default-language:
+    Haskell2010
+  default-extensions: DeriveDataTypeable
+                    , RecordWildCards
+  main-is:
+    ViennaRNA_DP.hs
+  ghc-options:
+    -O3
+    -funbox-strict-fields
+
+
+executable ViennaRNA_RG
+  build-depends: base
+               , cmdargs          >= 0.10   && < 0.11
+               , FormalGrammars
+               , GenussFold
+               , optparse-simple
+               , optparse-applicative
+  hs-source-dirs:
+    src
+  default-language:
+    Haskell2010
+  default-extensions: DeriveDataTypeable
+                    , RecordWildCards
+  main-is:
+    ViennaRNA_RG.hs
+  ghc-options:
+    -O3
+    -funbox-strict-fields
+
+
+executable ViennaRNA_RN
+  build-depends: base
+               , cmdargs          >= 0.10   && < 0.11
+               , FormalGrammars
+               , GenussFold
+               , optparse-simple
+               , optparse-applicative
+  hs-source-dirs:
+    src
+  default-language:
+    Haskell2010
+  default-extensions: DeriveDataTypeable
+                    , RecordWildCards
+  main-is:
+    ViennaRNA_RN.hs
   ghc-options:
     -O3
     -funbox-strict-fields

@@ -6,7 +6,7 @@ import Options.Applicative
 import Text.Printf
 import Control.Monad (forM_)
 
-import BioInf.GenussFold.ViennaRNA_LP
+import BioInf.GenussFold.ViennaRNA_RN
 
 data Options = Options
   { coopts  :: NumBT
@@ -35,8 +35,8 @@ main = greet =<< execParser opts
   where
     opts = info (sample <**> helper)
       ( fullDesc
-     <> progDesc "ViennaRNA and LP"
-     <> header "ViennaRNA with H-Pseudoknots" )
+     <> progDesc "ViennaRNA and RN"
+     <> header "ViennaRNA with Pseudoknots" )
 
 greet :: Options -> IO ()
 greet (Options c p) = do
