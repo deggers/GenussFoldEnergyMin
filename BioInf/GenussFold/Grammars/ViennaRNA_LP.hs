@@ -13,12 +13,13 @@ Grammar: EnergyMin
 N: S
 N: T
 N: a_Struct
-N: b_Closed
-N: c_M
-N: d_M1
-N: e_PKN
-N: <f_X,2>
-N: <g_Y,2>
+N: b_Struct
+N: c_Closed
+N: d_M
+N: e_M1
+N: f_PKN
+N: <g_X,2>
+N: <h_Y,2>
 
 T: nt
 T: regionCtx
@@ -27,27 +28,31 @@ S: a_Struct
 
 a_Struct -> nil <<< e
 a_Struct -> unp <<< nt a_Struct
-a_Struct -> jux <<< b_Closed a_Struct
-a_Struct -> pkn <<< e_PKN a_Struct
+a_Struct -> jux <<< c_Closed a_Struct
+a_Struct -> pkn <<< f_PKN a_Struct
 
-b_Closed -> hairpin      <<< regionCtx
-b_Closed -> interior     <<< regionCtx b_Closed regionCtx
-b_Closed -> mlr          <<< nt c_M d_M1 nt
+b_Struct -> nil <<< e
+b_Struct -> unp <<< nt b_Struct
+b_Struct -> jux <<< c_Closed b_Struct
 
-c_M -> mcm_1             <<< regionCtx b_Closed
-c_M -> mcm_2             <<< c_M b_Closed
-c_M -> mcm_3             <<< c_M nt
+c_Closed -> hairpin      <<< regionCtx
+c_Closed -> interior     <<< regionCtx c_Closed regionCtx
+c_Closed -> mlr          <<< nt d_M e_M1 nt
 
-d_M1 -> ocm_1            <<< b_Closed
-d_M1 -> ocm_2            <<< d_M1 nt
+d_M -> mcm_1             <<< regionCtx c_Closed
+d_M -> mcm_2             <<< d_M c_Closed
+d_M -> mcm_3             <<< d_M nt
 
-e_PKN -> hpk             <<< f_X g_Y f_X g_Y
+e_M1 -> ocm_1            <<< c_Closed
+e_M1 -> ocm_2            <<< e_M1 nt
 
-<f_X,f_X> -> pk1 <<< [-,regionCtx] [-,a_Struct] <f_X,f_X> [regionCtx,-] [a_Struct,-]
-<f_X,f_X> -> pk1b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
+f_PKN -> hpk             <<< g_X h_Y g_X h_Y
 
-<g_Y,g_Y> -> pk2 <<< [-,regionCtx] [-,a_Struct] <g_Y,g_Y> [regionCtx,-] [a_Struct,-]
-<g_Y,g_Y> -> pk2b <<< [nt,-] [-,nt] [a_Struct,-] [-,a_Struct]
+<g_X,g_X> -> pk1 <<< [-,regionCtx] [-,b_Struct] <g_X,g_X> [regionCtx,-] [b_Struct,-]
+<g_X,g_X> -> pk1b <<< [nt,-] [-,nt] [b_Struct,-] [-,b_Struct]
+
+<h_Y,h_Y> -> pk2 <<< [-,regionCtx] [-,b_Struct] <h_Y,h_Y> [regionCtx,-] [b_Struct,-]
+<h_Y,h_Y> -> pk2b <<< [nt,-] [-,nt] [b_Struct,-] [-,b_Struct]
 
 //
 Emit: EnergyMin
