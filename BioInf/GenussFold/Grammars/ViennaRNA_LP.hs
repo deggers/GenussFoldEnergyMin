@@ -29,7 +29,7 @@ S: a_Struct
 a_Struct -> nil <<< e
 a_Struct -> unp <<< nt a_Struct
 a_Struct -> jux <<< c_Closed a_Struct
-a_Struct -> pkn <<< f_PKN a_Struct
+a_Struct -> pkn <<< b_Struct f_PKN
 
 b_Struct -> nil <<< e
 b_Struct -> unp <<< nt b_Struct
