@@ -75,6 +75,8 @@ library
     BioInf.GenussFold.Grammars.ViennaRNA_RG
     BioInf.GenussFold.ViennaRNA_RN
     BioInf.GenussFold.Grammars.ViennaRNA_RN
+    BioInf.GenussFold.ViennaRNA_LPP
+    BioInf.GenussFold.Grammars.ViennaRNA_LPP
   default-language:
     Haskell2010
   default-extensions: BangPatterns
@@ -164,6 +166,24 @@ executable ViennaRNA_LP
     -O3
     -funbox-strict-fields
 
+executable ViennaRNA_LPP
+  build-depends: base
+               , cmdargs          >= 0.10   && < 0.11
+               , FormalGrammars
+               , GenussFold
+               , optparse-simple
+               , optparse-applicative
+  hs-source-dirs:
+    src
+  default-language:
+    Haskell2010
+  default-extensions: DeriveDataTypeable
+                    , RecordWildCards
+  main-is:
+    ViennaRNA_LPP.hs
+  ghc-options:
+    -O3
+    -funbox-strict-fields
 
 executable ViennaRNA_DP
   build-depends: base
