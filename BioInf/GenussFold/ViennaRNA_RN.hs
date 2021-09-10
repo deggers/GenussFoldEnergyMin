@@ -59,11 +59,6 @@ ignore      = 100123
 energyMinAlg :: Monad m => BS.ByteString -> Int -> Ptr() -> SigEnergyMin m Energy Energy NtPos (Pos,Pos)
 energyMinAlg input penalty compound = SigEnergyMin
   { nil  = \ () -> 0
-  -- Currently necessary to do pseudoknotted structure with Split-NonTerminal followed by pk-free structure without Split-NonTerminals
-  , h_pkn = \ pk pkf -> pk + pkf
-  , m_pkn = \ pk pkf -> pk + pkf
-  , l_pkn = \ pk pkf -> pk + pkf
-  , k_pkn = \ pk pkf -> pk + pkf
   , hpkn = \ () () a b          --  :: A B A B
     -> let m = maximum [a,b] in if m < 0 then a + b + penalty else ignore
    -- interiorLoops instead of stacking
@@ -150,10 +145,6 @@ data Pretty = Pnil | Ppkn [Pretty]
 pretty :: Monad m => SigEnergyMin m [String] [[String]] NtPos (Pos,Pos)
 pretty = SigEnergyMin
   { nil = \ () ->  [""]
-  , h_pkn = \ [x] [y] -> [x ++ y]
-  , m_pkn = \ [x] [y] -> [x ++ y]
-  , l_pkn = \ [x] [y] -> [x ++ y]
-  , k_pkn = \ [x] [y] -> [x ++ y]
   , hpkn = \ () () [a1,a2] [b1,b2]
     -> [a1 ++ b1 ++ a2 ++ b2]
   , mpkn = \ () () [a1,a2] () [c1,c2] [b1,b2]              -- :: A C A B C B
@@ -214,29 +205,25 @@ energyMin (NumBT k) (PenPK p) inp = unsafePerformIO $ do
   c <- V.mkFoldCompound i
   let
     iv = VU.fromList . Prelude.map toUpper $ inp
---       1  2  3  4  5  6  7  8  1  2  3  4
-    !(Z:.a:.b:.e:.f:.g:.j:.m:.n:.l:.r:.s:.t) = runInsideForward i iv p c
+--       1  2  3  4  1  2  3  4
+    !(Z:.a:.b:.e:.f:.l:.r:.s:.t) = runInsideForward i iv p c
     z = unId $ axiom a -- gets the value from the table
---                                       1  2  3  4  5  6  7  8  1  2  3  4
-    bs = runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.g:.j:.m:.n:.l:.r:.s:.t)
+--                                       1  2  3  4  1  2  3  4
+    bs = runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.l:.r:.s:.t)
   deepseq bs $ V.destroyFoldCompound c
   return (z, bs)
 {-# NOINLINE energyMin #-}
 
 type X = ITbl Id Unboxed Subword Energy
 type T = ITbl Id Unboxed (Z:.Subword:.Subword) Energy
---                                                                        1  2  3  4  5  6  7  8  1  2  3  4
-runInsideForward :: BS.ByteString -> VU.Vector Char -> Int -> Ptr() -> Z:.X:.X:.X:.X:.X:.X:.X:.X:.T:.T:.T:.T
+--                                                                        1  2  3  4  1  2  3  4
+runInsideForward :: BS.ByteString -> VU.Vector Char -> Int -> Ptr() -> Z:.X:.X:.X:.X:.T:.T:.T:.T
 runInsideForward i iv p c = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
                    $ gEnergyMin (energyMinAlg i p c)
                         (ITbl 0 1 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (166999) [])) -- 1
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (266999) [])) -- 2
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (366999) [])) -- 3
                         (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (466999) [])) -- 4
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (566999) [])) -- 5
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (566999) [])) -- 6
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (566999) [])) -- 7
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (566999) [])) -- 8
                         (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (777999) []))
                         (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (888999) []))
                         (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (888999) []))
@@ -245,21 +232,17 @@ runInsideForward i iv p c = mutateTablesWithHints (Proxy :: Proxy MonotoneMCFG)
                         (idxStrng1 1 31 iv)
   where n = BS.length i
 {-# NoInline runInsideForward #-}
---                                                                          1  2  3  4  5  6  7  8  1  2  3  4
-runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Int -> Ptr() -> Z:.X:.X:.X:.X:.X:.X:.X:.X:.T:.T:.T:.T -> [[String]] -- for the non-terminals:.T:.T
---                              1  2  3  4  5  6  7  8  1  2  3  4
-runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.j:.k:.q:.r:.s:.t:.u:.v) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
---           1  2  3  4  5  6  7  8  1  2  3  4
-  where !(Z:.g:._:._:._:._:._:._:._:._:._:._:._) = gEnergyMin (energyMinAlg i p c<|| pretty)
+--                                                                          1  2  3  4  1  2  3  4
+runInsideBacktrack :: BS.ByteString -> VU.Vector Char -> Int -> Ptr() -> Z:.X:.X:.X:.X:.T:.T:.T:.T -> [[String]] -- for the non-terminals:.T:.T
+--                              1  2  3  4  1  2  3  4
+runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.s:.t:.u:.v) = unId $ axiom g -- Axiom from the Start Nonterminal S -> a_Struct-
+--           1  2  3  4  1  2  3  4
+  where !(Z:.g:._:._:._:._:._:._:._) = gEnergyMin (energyMinAlg i p c<|| pretty)
   -- where !(Z:.g:.h:.l:.m:.n:.o:.p) = gEnergyMin (energyMinAlg i <|| prettyPaths i)
                           (toBacktrack a (undefined :: Id y -> Id y)) -- 1
                           (toBacktrack b (undefined :: Id y -> Id y)) -- 2
                           (toBacktrack e (undefined :: Id y -> Id y)) -- 3
                           (toBacktrack f (undefined :: Id y -> Id y)) -- 4
-                          (toBacktrack j (undefined :: Id y -> Id y)) -- 5
-                          (toBacktrack k (undefined :: Id y -> Id y)) -- 6
-                          (toBacktrack q (undefined :: Id y -> Id y)) -- 7
-                          (toBacktrack r (undefined :: Id y -> Id y)) -- 8
                           (toBacktrack s (undefined :: Id y -> Id y)) -- 1
                           (toBacktrack t (undefined :: Id y -> Id y)) -- 2
                           (toBacktrack u (undefined :: Id y -> Id y)) -- 3
