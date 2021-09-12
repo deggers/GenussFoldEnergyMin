@@ -168,7 +168,7 @@ energyMin (NumBT k) (PenPK p) inp = unsafePerformIO $ do
     iv = VU.fromList . Prelude.map toUpper $ inp
     !(Z:.a:.b:.e:.f:.g:.j) = runInsideForward i iv p c
     z = unId $ axiom a -- gets the value from the table
-    bs = runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.g:.j)
+    bs = take k $ runInsideBacktrack i iv p c (Z:.a:.b:.e:.f:.g:.j)
   deepseq bs $ V.destroyFoldCompound c
   return (z, bs)
 {-# NOINLINE energyMin #-}

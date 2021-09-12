@@ -18,7 +18,6 @@ N: a_Struct
 N: b_Closed
 N: c_M
 N: d_M1
-N: e_PKN
 N: <f_X,2>
 N: <g_Y,2>
 N: <h_Z1,2>
@@ -32,7 +31,7 @@ S: a_Struct
 a_Struct -> nil <<< e
 a_Struct -> unp <<< nt a_Struct
 a_Struct -> jux <<< b_Closed a_Struct
-a_Struct -> pkn <<< e_PKN a_Struct
+a_Struct -> pkn <<< f_X f_X
 
 b_Closed -> hairpin      <<< regionCtx
 b_Closed -> interior     <<< regionCtx b_Closed regionCtx
@@ -44,8 +43,6 @@ c_M -> mcm_3             <<< c_M nt
 
 d_M1 -> ocm_1            <<< b_Closed
 d_M1 -> ocm_2            <<< d_M1 nt
-
-e_PKN -> hpk             <<< f_X f_X
 
 -- A
 <f_X,f_X> -> pk1a <<< [-,h_Z1] <g_Y,g_Y> [-,h_Z1]
