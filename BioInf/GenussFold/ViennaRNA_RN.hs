@@ -166,9 +166,9 @@ pretty = SigEnergyMin
   , pk2b = \ (Z:.(l,lPos):.()) (Z:.():.(r,rPos)) (Z:.[t1]:.()) (Z:.():.[t2])
     -> ["[" ++ t1 , "]" ++ t2]
   , pk3b = \ (Z:.(l,lPos):.()) (Z:.():.(r,rPos)) (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["a" ++ t1 , "A" ++ t2]
+    -> ["A" ++ t1 , "a" ++ t2]
   , pk4b = \ (Z:.(l,lPos):.()) (Z:.():.(r,rPos)) (Z:.[t1]:.()) (Z:.():.[t2])
-    -> ["b" ++ t1 , "B" ++ t2]
+    -> ["B" ++ t1 , "b" ++ t2]
   , unp = \ _ [ss] -> ["." ++ ss]
   , jux = \ [x] [y] -> [x ++ y]
   , hairpin = \  (iPos,subtract 1 -> jPos)  -> ["(" ++ replicate (jPos-iPos-1) '.' ++ ")"]
