@@ -8,8 +8,8 @@ The implementation makes use of the *gADP* technique and provides a larger
 example on how to implement algorithms that require interleaved, split
 syntactic variables.
 
-# Thesis : Title in Progress
-first step: implementing an energy based model 
+# Thesis : Evaluation of pseudoknot-including RNA structure prediction grammars
+
 
 # How to run 
 Just run "ghci stack" - the nix-shell cannot work right now as it takes the newest dependencies which are not working right now 
